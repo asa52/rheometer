@@ -40,19 +40,21 @@ def F_t(t):
 
 
 def theta_theory(b, c, t):
-    return np.pi/2*np.cos(np.sqrt(c)*t)
+    return np.pi/np.sqrt(3)*np.exp(-t/2)*np.cos(np.sqrt(3)/2*t-np.pi/6)
 
 
 def omega_theory(b, c, t):
-    return -np.pi/2*np.sqrt(c)*np.sin(np.sqrt(c)*t)
+    return -np.pi/(2*np.sqrt(3))*np.exp(-t/2)*(np.sqrt(3)*np.sin(np.sqrt(
+        3)/2*t-np.pi/6) + np.cos(np.sqrt(3)/2*t-np.pi/6))
+
 
 def main():
-    b = 0
+    b = 1.
     c = 1.0
     # TODO Check the next line!
     F_func = lambda x: 0
     y0 = [np.pi/2, 0.0]
-    t = np.linspace(0, 1000, 1001)
+    t = np.linspace(0, 10, 101)
 
     sol = odeint(forced_pend, y0, t, args=(b, c, F_func))
 
