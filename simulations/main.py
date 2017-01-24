@@ -39,23 +39,38 @@ def F_t(t):
     """
 
 
+def theta_theory(b, c, t):
+    return np.pi/2*np.cos(np.sqrt(c)*t)
+
+
+def omega_theory(b, c, t):
+    return -np.pi/2*np.sqrt(c)*np.sin(np.sqrt(c)*t)
+
 def main():
     b = 0
     c = 1.0
     # TODO Check the next line!
     F_func = lambda x: 0
     y0 = [np.pi/2, 0.0]
-    t = np.linspace(0, 10, 101)
+    t = np.linspace(0, 1000, 1001)
 
     sol = odeint(forced_pend, y0, t, args=(b, c, F_func))
 
-    plt.plot(t, sol[:, 0], 'b', label='theta(t)')
-    plt.plot(t, sol[:, 1], 'g', label='omega(t)')
-    plt.plot(t, np.pi/2*np.cos(np.sqrt(c)*t), 'r.', label='expected_theta')
-    plt.plot(t, -np.pi/2*np.sqrt(c)*np.sin(np.sqrt(c)*t), 'k.',
-             label='expected_omega')
-    plt.legend(loc='best')
+    ax1 = plt.subplot(212)
+    plt.plot(t, sol[:, 0] - theta_theory(b, c, t), 'b', label=r'$\theta$')
+    plt.plot(t, sol[:, 1] - omega_theory(b, c, t), 'g', label=r'$\omega$')
+    plt.setp(ax1.get_xticklabels())
     plt.xlabel('t')
+
+    # share x only
+    ax2 = plt.subplot(211, sharex=ax1)
+    plt.plot(t, sol[:, 0], 'b', label=r'$\theta$')
+    plt.plot(t, sol[:, 1], 'g', label=r'$\omega$')
+    plt.plot(t, theta_theory(b, c, t), 'b.', label=r'$\theta_{theory}$')
+    plt.plot(t, omega_theory(b, c, t), 'g.', label=r'$\omega_{theory}$')
+    # make these tick labels invisible
+    plt.setp(ax2.get_xticklabels(), visible=False)
+    plt.legend(loc='best')
     plt.grid()
     plt.show()
 
