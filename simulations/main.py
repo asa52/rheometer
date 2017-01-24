@@ -34,21 +34,33 @@ def forced_pend(y, t, b, c, f_func):
     return dydt
 
 
+def _bc_consts(beta, w_dr):
+    C = -8*beta*w_dr/((25-w_dr**2)**2+64*w_dr**2)
+    D = beta*(25-w_dr**2)/((25-w_dr**2)**2+64*w_dr**2)
+    A = 1-C
+    B = (4*A - D*w_dr)/3
+    return A, B, C, D
+
+
 def theta_theory(b, c, w_dr, beta, t):
     """Theoretical values of theta."""
-    return np.cos(t) + beta/(1-w_dr**2)*(np.sin(w_dr*t)-w_dr*np.sin(t))
+    A, B, C, D = _bc_consts(beta, w_dr)
+    return (A*np.cos(3*t)+B*np.sin(3*t))*np.exp(-4*t) + C*np.cos(w_dr*t) + \
+           D*np.sin(w_dr*t)
 
 
 def omega_theory(b, c, w_dr, beta, t):
     """Theoretical values of omega."""
-    return -np.sin(t) + beta*w_dr/(1-w_dr**2)*(np.cos(w_dr*t)-np.cos(t))
+    A, B, C, D = _bc_consts(beta, w_dr)
+    return np.exp(-4*t)*((3*B-4*A)*np.cos(3*t)-(3*A+4*B)*np.sin(3*t)) - \
+           C*w_dr*np.sin(w_dr*t) + D*w_dr*np.cos(w_dr*t)
 
 
 def main():
-    b = 0
-    c = 1.0
+    b = 8
+    c = 25
     w_dr = np.pi/2
-    beta = 3
+    beta = 5
 
     f_func = lambda x: beta * np.sin(w_dr*x)
     y0 = [1., 0.0]
