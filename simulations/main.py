@@ -5,21 +5,6 @@ import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
-# The second order differential equation for the angle theta of a
-# torsional pendulum acted on by elastic tension with friction can be written:
-# TODO change this to include all the geometry of the pendulum
-# theta''(t) + b*theta'(t) + c*theta(t) = F(t)
-
-# where b and c are positive constants, and a prime (') denotes a derivative.
-# To solve this equation with odeint, we must first convert it to a system of
-# first order equations. By defining the angular velocity omega(t) = theta'(t),
-# we obtain the system:
-# theta'(t) = omega(t)
-# omega'(t) = F(t) - b*omega(t) - c*theta(t)
-
-# SOURCE: https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/
-# scipy.integrate.odeint.html#scipy.integrate.odeint
-
 
 def forced_pend(y, t, b, c, f_func):
     """Forced torsional pendulum oscillator.
@@ -29,6 +14,24 @@ def forced_pend(y, t, b, c, f_func):
     :param c: Same for theta.
     :param f_func: Function object for the forcing function at time t.
     :return: dy/dt."""
+
+    # The second order differential equation for the angle theta of a
+    # torsional pendulum acted on by elastic tension with friction can be
+    # written:
+
+    # TODO change this to include all the geometry of the pendulum
+    # theta''(t) + b*theta'(t) + c*theta(t) = F(t)
+
+    # where b and c are positive constants, and a prime (') denotes a
+    # derivative. To solve this equation with odeint, we must first convert it
+    # to a system of first order equations. By defining the angular velocity
+    # omega(t) = theta'(t), we obtain the system:
+    # theta'(t) = omega(t)
+    # omega'(t) = F(t) - b*omega(t) - c*theta(t)
+
+    # SOURCE: https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/
+    # scipy.integrate.odeint.html#scipy.integrate.odeint
+
     theta, omega = y
     dydt = [omega, f_func(t) - b * omega - c * theta]
     return dydt
@@ -90,6 +93,18 @@ def main():
     plt.grid()
     plt.show()
 
+
+def response_curve():
+    """Generate the response for a resonating system."""
+    return
+
+
+def measure():
+    """Experimentally measure the frequency, amplitude, velocity and phase of a
+    displacement waveform with error. This will be translated into C and
+    directly implemented on Arduino, so it shouldn't use high-level
+    functions. It should also be fast!"""
+    return
 
 if __name__ == '__main__':
     main()
