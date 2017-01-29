@@ -1,4 +1,3 @@
-
 #include "feedback_funcs.h"
 
 static int A0mu[2076] = {
