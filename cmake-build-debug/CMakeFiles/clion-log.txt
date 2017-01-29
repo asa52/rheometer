@@ -1,19 +1,6 @@
-"C:\Program Files (x86)\JetBrains\CLion 2016.2.2\bin\cmake\bin\cmake.exe" -DCMAKE_BUILD_TYPE=Debug set PATH=%PATH:C:\bin\WinAVR\utils\bin=% -G "CodeBlocks - MinGW Makefiles" "C:\Users\Abhishek\OneDrive - University Of Cambridge\Project\Code"
-CMake Error at C:/Program Files (x86)/JetBrains/CLion 2016.2.2/bin/cmake/share/cmake-3.6/Modules/CMakeMinGWFindMake.cmake:22 (message):
-  sh.exe was found in your PATH, here:
-
-  C:/bin/WinAVR/utils/bin/sh.exe
-
-  For MinGW make to work correctly sh.exe must NOT be in your path.
-
-  Run cmake from a shell that does not have sh.exe in your PATH.
-
-  If you want to use a UNIX shell, then use MSYS Makefiles.
-
-Call Stack (most recent call first):
-  CMakeLists.txt:4 (project)
-
-
-CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage
-CMake Error: CMAKE_CXX_COMPILER not set, after EnableLanguage
--- Configuring incomplete, errors occurred!
+C:\Users\Abhishek\.CLion2016.3\system\cygwin_cmake\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug set PATH=%PATH:C:\bin\WinAVR\utils\bin=% -G "CodeBlocks - Unix Makefiles" "/cygdrive/c/Users/Abhishek/OneDrive - University Of Cambridge/Project/Code"
+-- Configuring done
+CMake Error: CMake can not determine linker language for target: Code
+CMake Error: Cannot determine link language for target "Code".
+-- Generating done
+-- Build files have been written to: /cygdrive/c/Users/Abhishek/OneDrive - University Of Cambridge/Project/Code/cmake-build-debug
