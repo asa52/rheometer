@@ -135,9 +135,23 @@ def per(t, theta):
 
     bin_height = np.absolute(np.fft.fft(theta))**2
     bins = np.fft.fftfreq(t.shape[-1], d=float(mean_diff))
-    plt.plot(bins, bin_height)
-    plt.show()
-    # TODO find the frequency from the plot, and the error
+    # plt.plot(bins, bin_height)
+    # plt.show()
+
+    pos_freq = []
+    pos_heights = []
+    for i in range(len(bins)):
+        if bins[i] >= 0:
+            pos_freq.append(bins[i])
+            pos_heights.append(bin_height[i])
+
+    ind = pos_heights.index(max(pos_heights))
+    peak = pos_freq[ind]
+    high_freqs = np.array(pos_freq)[np.where(np.array(pos_heights) >=
+                                             pos_heights[ind]/2.)]
+    print(high_freqs)
+    fwhm = max(high_freqs) - min(high_freqs)
+    return peak, fwhm
 
 
 def into_chunks(t, theta, period):
@@ -164,4 +178,4 @@ def into_chunks(t, theta, period):
 
 t = np.linspace(0, 10, 50)
 print(t)
-per(t, np.sin(2*np.pi*t))
+print(per(t, np.sin(2*np.pi*t)))

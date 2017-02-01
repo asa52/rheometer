@@ -20,7 +20,7 @@ void loop() {
   // 1 Hz is the minimum freq for the complete wave
   // 170 Hz is the maximum freq for the complete wave. Measured considering the loop and the analogRead() time
   
-  sample = map(500, 0, 4095, 0, oneHzSample);
+  sample = map(1, 0, 4095, 0, oneHzSample);
   sample = constrain(sample, 0, oneHzSample);
   analogWrite(DAC1, waveformsTable[wave1][i]);  // write the selected waveform on DAC1
   SerialUSB.println(analogRead(A0));
