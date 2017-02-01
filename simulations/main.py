@@ -106,5 +106,76 @@ def measure():
     functions. It should also be fast!"""
     return
 
-if __name__ == '__main__':
-    main()
+
+def amplitude(t, theta, period):
+    """Measure the average amplitude and error in mean of a theta array with
+    given period over time t."""
+    chunks = into_chunks(t, theta, period)
+    mean_amp = 0
+    amps = []
+    for chunk in chunks:
+        amp = (max(chunk) - min(chunk)) / 2.
+        amps.append(amp)
+        mean_amp += amp
+    mean_amp /= len(chunks)
+    var = 0
+    for amp in amps:
+        var += (amp - mean_amp)**2
+    err = np.sqrt(var / ((len(amps) - 1) * len(amps)))
+    return mean_amp, err
+
+
+def per(t, theta):
+    """Return the period and uncertainty of the most dominant frequency in a
+    waveform using FFT."""
+    time_diff = []
+    for i in range(len(t)-1):
+        time_diff.append(t[i+1]-t[i])
+    mean_diff = np.mean(time_diff)
+
+    bin_height = np.absolute(np.fft.fft(theta))**2
+    bins = np.fft.fftfreq(t.shape[-1], d=float(mean_diff))
+    # plt.plot(bins, bin_height)
+    # plt.show()
+
+    pos_freq = []
+    pos_heights = []
+    for i in range(len(bins)):
+        if bins[i] >= 0:
+            pos_freq.append(bins[i])
+            pos_heights.append(bin_height[i])
+
+    ind = pos_heights.index(max(pos_heights))
+    peak = pos_freq[ind]
+    high_freqs = np.array(pos_freq)[np.where(np.array(pos_heights) >=
+                                             pos_heights[ind]/2.)]
+    print(high_freqs)
+    fwhm = max(high_freqs) - min(high_freqs)
+    return peak, fwhm
+
+
+def into_chunks(t, theta, period):
+    """Splits the array 'theta' into chunks spanning a time 'period',
+    with array 't' corresponding to the times 'theta' was measured."""
+    i = 0
+    j = 0
+    equal = False
+    chunks = []
+    chunk = []
+    while i < len(theta):
+        if t[i] - t[j] <= period and not equal:
+            chunk.append(theta[i])
+            if t[i] - t[j] == period:
+                equal = True
+            else:
+                i += 1
+        else:
+            equal = False
+            j = i
+            chunks.append(chunk)
+            chunk = []
+    return chunks
+
+t = np.linspace(0, 10, 50)
+print(t)
+print(per(t, np.sin(2*np.pi*t)))

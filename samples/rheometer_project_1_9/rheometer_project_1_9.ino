@@ -888,4 +888,3 @@ void map_centre_back_to_pos(int last_pos, int try_num, int twos){
   } 
  }
 }
-
