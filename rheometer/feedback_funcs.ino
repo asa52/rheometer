@@ -7,17 +7,17 @@ void handle_const_strain_feedback() {
             amp -= 1;
         }
         send_out_of_bounds_values();
-        if (1 == freq_check) {
+        if (freq_check == 1) {
             t_diff++; // also count time of out of bounds events
         }
     } else {
-        if (1 == freq_check) {
+        if (freq_check == 1) {
             if ((pos + 16) >= pos_rec && (pos - 16) <= pos_rec) { //points are sparse, so a strict recurrence condition can miss many cycles
-                if (175000 <= val) { //at freq < 2Hz shorter periods are presumably the 2Hz fundamental
-                    if (6 < t_diff) {
-                        if (0 == (f_count % 2) && 1 < f_count && 15 > (t_diff + rec_times[f_count])) {
+                if (val >= 175000) { //at freq < 2Hz shorter periods are presumably the 2Hz fundamental
+                    if (t_diff > 6) {
+                        if ((f_count % 2) == 0 && f_count > 1 && (t_diff + rec_times[f_count]) < 15) {
                             f_count -= 2;
-                        } else if (0 == (f_count % 2)) { //2nd recurrence of a value implies completed period
+                        } else if ((f_count % 2) == 0) { //2nd recurrence of a value implies completed period
                             A0_period_estimates[A0_period_count] = t_diff + rec_times[f_count];
                             pest_check = (120 - A0_period_estimates[A0_period_count]);
                             pest_num = A0_period_count;
@@ -29,11 +29,11 @@ void handle_const_strain_feedback() {
                     }
                     t_diff = 0;
 
-                } else if (175000 > val) { //at freq > 2Hz reject periods shorter than half a driving cycle
-                    if (6 < t_diff) {
-                        if (0 == (f_count % 2) && 1 <= f_count && 60 > (t_diff + rec_times[f_count])) {
+                } else if (val < 175000) { //at freq > 2Hz reject periods shorter than half a driving cycle
+                    if (t_diff > 6) {
+                        if ((f_count % 2) == 0 && f_count >= 1 && (t_diff + rec_times[f_count]) < 60) {
                             f_count -= 2;
-                        } else if (0 == (f_count % 2)) { //2nd recurrence of a value implies completed period
+                        } else if ((f_count % 2) == 0) { //2nd recurrence of a value implies completed period
                             A0_period_estimates[A0_period_count] = t_diff + rec_times[f_count];
                             pest_check = (120 - A0_period_estimates[A0_period_count]);
                             pest_num = A0_period_count;
@@ -46,7 +46,7 @@ void handle_const_strain_feedback() {
                     t_diff = 0;
                 }
 
-                if (32 == f_count) {
+                if (f_count == 32) {
                     int two_rec_mean = 0;
                     for (int i = 0; i < f_count; i++) {
                         two_rec_mean += rec_times[i];}
@@ -55,10 +55,10 @@ void handle_const_strain_feedback() {
                     f_count = 0;
                     freq_check = 2;
                 }
-                if (16 == A0_period_count) {
+                if (A0_period_count == 16) {
                     A0_period_count = 0;
                 }
-            } else if (1600 < t_diff) { //handle time overflow for non-recurring pos values
+            } else if (t_diff > 1600) { //handle time overflow for non-recurring pos values
                 freq_check = 2;//possibly guessed range doesn't contain value, so take centre instead
                 t_diff = 0;
             } else {
@@ -69,7 +69,7 @@ void handle_const_strain_feedback() {
           pos_rec = pos;
       }*/
 
-        if (1 == centre_estimated) {
+        if (centre_estimated == 1) {
             switch (p) {
                 case 0 :
                     send_3_byte_value(amp, 0b00000000);
@@ -87,7 +87,7 @@ void handle_const_strain_feedback() {
                     send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
                     break;
                 case 11 :
-                    if (0 > phase_estimates[delta_num]) {
+                    if (phase_estimates[delta_num] < 0) {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010001);
                     } else {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010000);
@@ -101,7 +101,7 @@ void handle_const_strain_feedback() {
                     send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
                     break;
                 case 131 :
-                    if (0 > phase_estimates[delta_num]) {
+                    if (phase_estimates[delta_num] < 0) {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010001);
                     } else {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010000);
@@ -114,7 +114,7 @@ void handle_const_strain_feedback() {
                     send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
                     break;
                 case 251 :
-                    if (0 > phase_estimates[delta_num]) {
+                    if (phase_estimates[delta_num] < 0) {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010001);
                     } else {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010000);
@@ -127,7 +127,7 @@ void handle_const_strain_feedback() {
                     send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
                     break;
                 case 371 :
-                    if (0 > phase_estimates[delta_num]) {
+                    if (phase_estimates[delta_num] < 0) {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010001);
                     } else {
                         send_3_byte_value(phase_estimates[delta_num], 0b00010000);
@@ -149,9 +149,9 @@ void handle_const_strain_feedback() {
                 dt = t - last_t;
             }
 
-            if (0 < p && range > p) { // time differential quotient (new - old) / dt
+            if (p > 0 && range > p) { // time differential quotient (new - old) / dt
                 dmudt = ((array[p] - array[p - 1]) / dt);
-            } else if (0 == p) {
+            } else if (p == 0) {
                 dmudt = ((array[0] - array[range - 1]) / dt);
             }/*else if (1 == p){
             dmudt = ((array[p-1] - array[range-1])/dt);
@@ -160,8 +160,7 @@ void handle_const_strain_feedback() {
             darraydt[p] = dmudt;
 
             if ((p % sample_num) == 1) { // reset estimates every full cycle, for p == 1, 121, 241 and 361
-                if (0 <= e_num) {
-
+                if (e_num >= 0) {
                     peaksnt[e_num][0] = peak;
                     peaksnt[e_num][1] = t_peak;
                     peaksnt[e_num][2] = dpeakdt;
@@ -175,11 +174,11 @@ void handle_const_strain_feedback() {
                     dA0dt_amp = ((peaksnt[feed_num][2] - troughsnt[feed_num][2]) / 2);
                     // positive phase_estimate means that the response leads the driving
 
-                    if (0 == (delta_num % 2)) { // even numbered elements are estimates from peaks
+                    if ((delta_num % 2) == 0) { // even numbered elements are estimates from peaks
                         phase_estimates[delta_num] = (30 - t_peak);
-                        if (-60 > phase_estimates[delta_num]) {
+                        if (phase_estimates[delta_num] < -60) {
                             phase_estimates[delta_num] = sample_num + phase_estimates[delta_num];
-                        } else if (60 < phase_estimates[delta_num]) {
+                        } else if (phase_estimates[delta_num] > 60) {
                             phase_estimates[delta_num] = sample_num - phase_estimates[delta_num];
                         }
 
@@ -187,16 +186,16 @@ void handle_const_strain_feedback() {
 
                     } else { // odd numbered elements are estimates from troughs
                         phase_estimates[delta_num] = (90 - t_trough);
-                        if (-60 > phase_estimates[delta_num]) {
+                        if (phase_estimates[delta_num] < -60) {
                             phase_estimates[delta_num] = sample_num + phase_estimates[delta_num];
-                        } else if (60 < phase_estimates[delta_num]) {
+                        } else if (phase_estimates[delta_num] > 60) {
                             phase_estimates[delta_num] = sample_num - phase_estimates[delta_num];
                         }
 
                         delta_num++;
                     }
 
-                    if (16 == delta_num) {
+                    if (delta_num == 16) {
                         delta_num = 0;
                     }
 
@@ -205,7 +204,7 @@ void handle_const_strain_feedback() {
 
                 e_num++;
 
-                if (8 == e_num) {
+                if (e_num == 8) {
                     e_num = 0;
                 }
 
@@ -234,7 +233,7 @@ void handle_const_strain_feedback() {
                     t_dtroughdt = t;
                 }
 
-            } else if (1 < p && (p % sample_num) != 1) { //else compare values within cycle
+            } else if (p > 1 && (p % sample_num) != 1) { //else compare values within cycle
                 if (peak < array[p]) {
                     peak = array[p];
                     t_peak = t;
@@ -287,26 +286,26 @@ void handle_const_strain_feedback() {
         last_t = t;
     }
 
-    if (0 == run_option) {
-        if (0x7ff == waveformsTable[t] && 0 <= feed_num) {
+    if (run_option == 0) {
+        if (waveformsTable[t] == 0x7ff && feed_num >= 0) {
             // assess whether peak and trough values lie symmetrically about the centre value
             // if not, response likely hasn't settled to a steady state, so just wait
             if (((4 * mu_tol) >= sym_check && ((-4) * mu_tol) <= sym_check) || 
-              (0 >= pest_num && 40 >= pest_check && (-40) <= pest_check)) {
+                (pest_num <= 0 && pest_check <= 40 && pest_check >= (-40))) {
                 //compare using last 1 cycle estimates
-                if (0 == strain_closing_in) {
+                if (strain_closing_in == 0) {
                     adaptive_step_calculation_for_const_strain();
-                } else if (1 == strain_closing_in) {
+                } else if (strain_closing_in == 1) {
                     settle_amp();
                 }
 
                 // increase amplitude, when it is lower than required
-                if ((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) <= set_strain - mu_tol) && 2048 >= (amp + amp_step)){
+                if ((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) <= set_strain - mu_tol) && (amp + amp_step) <= 2048){
                     amp += amp_step;
                     old_amp_step = amp_step;
                 } // decrease amplitude, when it is higher than required
                 else if ((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) >= set_strain + mu_tol) && 
-                         0 <= (amp - amp_step)) {
+                         (amp - amp_step) >= 0) {
                     amp -= amp_step;
                     old_amp_step = amp_step;
                 }
@@ -318,11 +317,11 @@ void handle_const_strain_feedback() {
 void adaptive_step_calculation_for_const_strain() {
     //( (waveformsTable[t] * 512 * amp) / 1048576 )
 
-    if (0 != old_amp_step && 1 <= feed_num) {
+    if (old_amp_step != 0 && feed_num >= 1) {
         fiddle = (128 / old_amp_step);
-        if (64 < old_amp_step && 96 > old_amp_step) {
+        if (old_amp_step > 64 && old_amp_step < 96) {
             fiddle = 2;
-        } else if (96 < old_amp_step) {
+        } else if (old_amp_step > 96) {
             fiddle = 1;
         }
 
@@ -333,48 +332,48 @@ void adaptive_step_calculation_for_const_strain() {
 
         past_step_estimates[step_count] = step_estimate;
 
-        if (8 >= amp && 8 < step_estimate) {
+        if (amp <= 8 && step_estimate > 8) {
             amp_step = 8;
         }
 
-        if (0 > step_estimate) {
-            if (0 < step_count && 0 < past_step_estimates[step_count - 1]) {
+        if (step_estimate < 0) {
+            if (step_count > 0 && past_step_estimates[step_count - 1] > 0) {
                 sign_change_count++;
             }
             step_estimate = (-step_estimate);
-        } else if (0 < step_count && 0 > past_step_estimates[step_count - 1]) {
+        } else if (step_count > 0 && past_step_estimates[step_count - 1] < 0) {
             sign_change_count++;
         }
 
-        if ((2048 >= (amp + step_estimate)) && (0 <= (amp - step_estimate))) {
+        if (((amp + step_estimate) <= 2048) && ((amp - step_estimate) >= 0)) {
             amp_step = step_estimate;
-        } else if ((2048 >= (amp + (step_estimate / 2))) && (0 <= (amp - (step_estimate / 2)))) {
+        } else if (((amp + (step_estimate / 2)) <= 2048) && ((amp - (step_estimate / 2)) >= 0)) {
             amp_step = (step_estimate / 2);
-        } else if ((2048 >= (amp + (step_estimate / 4))) && (0 <= (amp - (step_estimate / 4)))) {
+        } else if (((amp + (step_estimate / 4)) <= 2048) && ((amp - (step_estimate / 4)) >= 0)) {
             amp_step = (step_estimate / 4);
         } else {
             amp_step = 1;
         }
 
-    } else if (0 == old_amp_step && 1 >= feed_num) {
-        if (((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) <= set_strain - mu_tol) && 2048 > amp) || 
-          ((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) >= set_strain + mu_tol) && 0 < amp)) {
+    } else if (old_amp_step == 0 && feed_num <= 1) {
+        if (((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) <= set_strain - mu_tol) && amp < 2048) || 
+          ((((peaksnt[feed_num][0] - troughsnt[feed_num][0]) / 2) >= set_strain + mu_tol) && amp > 0)) {
             amp_step = 1;
         }
     }
 
-    if (0 < sign_change_count) {
+    if (sign_change_count > 0) {
         past_amp_steps[step_count] = amp_step;
         step_count++;
     }
 
-    if (8 == step_count) {
-        if (3 <= sign_change_count) {
+    if (step_count == 8) {
+        if (sign_change_count >= 3) {
             int d_amp_step = 0, d_amp = 0;
             for (int i = 0; i < step_count; i++) {
                 d_amp_step += past_amp_steps[i];
                 d_amp += past_amps[i];
-                if (1 <= i) {
+                if (i >= 1) {
                     max_amp_step = max(past_amp_steps[i], past_amp_steps[i - 1]);
                     min_amp_step = min(past_amp_steps[i], past_amp_steps[i - 1]);
                 }
@@ -404,7 +403,7 @@ void settle_amp() {
     //int step_attempt = 0;
     //int sign = 1;
 
-    if (0 == mean_tried) {
+    if (mean_tried == 0) {
         amp = mean_amp;
         mean_tried = 1;
     }
@@ -416,40 +415,40 @@ void settle_amp() {
 
     amp_step = 1;
     /*
-    if(3 >= sign_change_count){
-      if((((peaksnt[feed_num][0] - troughsnt[feed_num][0])/2) < set_strain )){
+    if(sign_change_count <= 3){
+      if((((peaksnt[feed_num][0] - troughsnt[feed_num][0])/2) < set_strain)){
         sign = -1;
     }
 
-      if(32 >= amp_step_deviation && 4 > attempt_count){
-        step_attempt = (amp_step_deviation/4);
-    } else if(16 >= amp_step_deviation && 4 > attempt_count){
-      step_attempt = 4;
+    if(amp_step_deviation <= 32 && attempt_count < 4){
+        step_attempt = (amp_step_deviation / 4);
+    } else if (amp_step_deviation <= 16 && attempt_count < 4){
+        step_attempt = 4;
     } else {
-      step_attempt = 2;
+        step_attempt = 2;
     }
 
-      if(0 < attempt_count){
-       if((0 < past_attempts[attempt_count] && 0 > past_attempts[attempt_count - 1]) || 
-        (0 > past_attempts[attempt_count] && 0 < past_attempts[attempt_count - 1])){
-          sign_change_count ++;}
-      }
-
-      if((mean_amp + mean_amp_step) <= 2048 && (mean_amp + mean_amp_step) >= (amp + step_attempt) && 
-        (mean_amp - mean_amp_step) <= (amp - step_attempt) && mean_amp > mean_amp_step ){
-        past_attempts[attempt_count] = sign*step_attempt;
+    if(attempt_count > 0){
+        if((past_attempts[attempt_count] > 0 && past_attempts[attempt_count - 1] < 0) || 
+            (past_attempts[attempt_count] < 0 && past_attempts[attempt_count - 1] > 0)){
+            sign_change_count ++;
+        }
+    }
+    if((mean_amp + mean_amp_step) <= 2048 && (mean_amp + mean_amp_step) >= (amp + step_attempt) && 
+        (mean_amp - mean_amp_step) <= (amp - step_attempt) && mean_amp > mean_amp_step){
+        past_attempts[attempt_count] = sign * step_attempt;
         amp_step = step_attempt;
     }
 
-      attempt_count ++;
+    attempt_count ++;
 
     } else {
-      amp_step = 1;
+        amp_step = 1;
     }
 
     if(8 == attempt_count){
-      sign_change_count = 0;
-      attempt_count = 0;
+        sign_change_count = 0;
+        attempt_count = 0;
     }
     */
 }

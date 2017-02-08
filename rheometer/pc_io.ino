@@ -22,7 +22,7 @@ void handle_pc_input() {
                 REG_TC0_RC0 = val;
                 // cannot predict response at new frequency
                 // hence set to zero
-                if (0 == run_option) {
+                if (run_option == 0) {
                     amp = 0;
                 }
 
@@ -42,42 +42,42 @@ void handle_pc_input() {
                 feed_num = -1;
 
             } else if (mode == 1) { //bitRead(mode,0) == 1)
-                if (0 == run_option) {
+                if (run_option == 0) {
                     set_strain = val;
                     amp_step = 0;
                     old_amp_step = 0;
                     strain_closing_in = 0;
-                } else if (1 == run_option) {
+                } else if (run_option == 1) {
                     amp = val;
-                } else if (2 == run_option) {
+                } else if (run_option == 2) {
                     DC_func = val;
                 }
             } else if (mode == 3) {
-                if (0 == korb) {
+                if (korb == 0) {
                     simu_k = val;
-                } else if (1 == korb) {
+                } else if (korb == 1) {
                     simu_b = val;
                 }
             } else if (mode == 5) {
                 equilibrium_A0 = val;
             }
 
-        } else if ((mode == 0b00000010 || mode == 0b00000100) && (1 == run_option || 2 == run_option)) {
+        } else if ((mode == 0b00000010 || mode == 0b00000100) && (run_option == 1 || run_option == 2)) {
             if (mode == 0b00000010) {
-                if (1 == run_option && 0 < amp) {
+                if (run_option == 1 && amp > 0) {
                     amp -= 1;
                 }
 
-                if (2 == run_option && DC_func > 0) {
+                if (run_option == 2 && DC_func > 0) {
                     DC_func -= 1;
                 }
                 //amp_step /= 2;
 
             } else if (mode == 0b00000100) {
-                if (1 == run_option && 2048 > amp) {
+                if (run_option == 1 && amp < 2048) {
                     amp += 1;
                 }
-                if (2 == run_option && DC_func < 4095) {
+                if (run_option == 2 && DC_func < 4095) {
                     DC_func += 1;
                 }
                 
@@ -122,7 +122,7 @@ void handle_pc_input() {
         } else if (mode == 0b00110000) {
             //toggle floating centre/permanent equilibrium displacement estimate
             centre_mode = 1 - centre_mode;
-            if (-1 == equilibrium_A0) {
+            if (equilibrium_A0 == -1) {
                 equilibrium_A0 = centre;
             }
         }
@@ -136,7 +136,8 @@ void send_3_byte_value(int value, byte third_byte) {
 
     b[0] = value;
 
-    for (int i = 8; i <= 14; i++) { //had problems with 14th bit being set for no reason
+    for (int i = 8; i <= 14; i++) { 
+    	//TODO had problems with 14th bit being set for no reason
         bitWrite(b[1], i - 8, bitRead(value, i));
     }
 
@@ -215,7 +216,7 @@ void send_pos() {
 }
 
 void map_centre_back_to_pos(int last_pos, int try_num, int twos) {
-    if (10 > try_num && A0mu[last_pos] != centre) {
+    if (try_num < 10 && A0mu[last_pos] != centre) {
         if (A0mu[last_pos] < centre) {
             try_num += 1; //start counting from 1 not 0 tries
             twos *= 2; //avoid pow function as uses float
@@ -224,8 +225,8 @@ void map_centre_back_to_pos(int last_pos, int try_num, int twos) {
         } else if (A0mu[last_pos] > centre) {
             try_num += 1; //start counting from 1 not 0 tries
             twos *= 2; //avoid pow function as uses float
-            int new_pos = (last_pos - (1038 / twos)); //need powers of 2 fractions of half maximum
-            map_centre_back_to_pos(new_pos, try_num, twos);//recrusive call with advanced values
+            int new_pos = (last_pos - (1038 / twos)); // need powers of 2 fractions of half maximum
+            map_centre_back_to_pos(new_pos, try_num, twos); // recursive call with advanced values
         }
 
     } else if (A0mu[last_pos] == centre) {
@@ -244,11 +245,11 @@ void map_centre_back_to_pos(int last_pos, int try_num, int twos) {
                     break;
                 }
             }
-            if (1 == get_out) {
+            if (get_out == 1) {
                 break; //break out j-loop
             }
         } //in case no match is found
-        if (0 == get_out) { // though unlikely, check entries 0, 1 and 2 as well
+        if (get_out == 0) { // though unlikely, check entries 0, 1 and 2 as well
             for (int j = 1; j < 128; j++) {
                 for (int i = 0; i <= 2; i++) {
                     if (A0mu[i] == centre + j) {
@@ -261,7 +262,7 @@ void map_centre_back_to_pos(int last_pos, int try_num, int twos) {
                         break;
                     }
                 }
-                if (1 == get_out) {
+                if (get_out == 1) {
                     break; //break out j-loop
                 }
             }

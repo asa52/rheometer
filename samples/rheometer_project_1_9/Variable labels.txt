@@ -4,7 +4,7 @@ sample_num: Period of the sine wave in steps
 waveformsTable[sample_num]: Sine wave composed of hex keys to indicate value. Centred at 2047, period 120 steps, min at 0, max at 4095.
 b[3]:
 mode:
-val_in[4]:
+val_in[4]: A 4-byte array specifying the 
 measure: The pin to measure sensor values from.
 run_option:
 func: 
@@ -79,4 +79,4 @@ e_num:
 cycle_counter:
 mu_one_back: Previous measured value of mu
 mu_two_back: Previous but one measured value of mu.
-
+REG_TC0_RC0: The register that controls the maximum value the timer counts up to (basically the period for the function fed to DAC1).
