@@ -129,7 +129,7 @@ void setup() {
   System.out.println("Available serial ports are: " + Arrays.toString( Serial.list())); //debug
   background(100);
   //Open 2nd visible serial port
-  portName = Serial.list()[0];
+  portName = Serial.list()[1];
 
   // Serial.list() array's indexes on my machine (this is machine specific):
   // 0 = integrated serial on motherboard
@@ -1040,6 +1040,8 @@ void concatenate_file(){
   }
   
  }
+ 
+ // SEE HERE FOR WHAT TEXT FILE HEADERS ARE!
  //add time stamp
  output.println(day() + "_" + month() + "_" + year() + ", " + hour() + ":" + minute() + ":" + second());
  output.println(freq_val + "\t" + (1.0/(freq_val*120))  + "\t" + k_val + "\t" + b_val + "\t" + eq_val);
@@ -1180,4 +1182,3 @@ void stress_of_time(){
  }
   
 }
-
