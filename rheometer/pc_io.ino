@@ -200,6 +200,7 @@ void send_mu() {
 }
 
 void send_pos() {
+    // does this send the raw read position from A0?
     b[0] = pos;
 
     for (int i = 8; i <= 13; i++) {

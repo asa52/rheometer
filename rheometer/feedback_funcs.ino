@@ -1,6 +1,7 @@
 // Feedback functions.
 
 void handle_const_strain_feedback() {
+// what does this function do?
 
     if ((pos <= 1558 || pos >= 3633) && amp >= 1) {
         if (0 == run_option) {
