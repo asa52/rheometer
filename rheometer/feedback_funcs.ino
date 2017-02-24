@@ -12,7 +12,8 @@ void handle_const_strain_feedback() {
         }
     } else {
         if (freq_check == 1) {
-            if ((pos + 16) >= pos_rec && (pos - 16) <= pos_rec) { //points are sparse, so a strict recurrence condition can miss many cycles
+            if ((pos + 16) >= pos_rec && (pos - 16) <= pos_rec) { 
+                //points are sparse, so a strict recurrence condition can miss many cycles
                 if (val >= 175000) { //at freq < 2Hz shorter periods are presumably the 2Hz fundamental
                     if (t_diff > 6) {
                         if ((f_count % 2) == 0 && f_count > 1 && (t_diff + rec_times[f_count]) < 15) {
@@ -155,7 +156,7 @@ void handle_const_strain_feedback() {
                 dmudt = ((array[0] - array[range - 1]) / dt);
             }/*else if (1 == p){
             dmudt = ((array[p-1] - array[range-1])/dt);
-          }*/
+        }*/
 
             darraydt[p] = dmudt;
 

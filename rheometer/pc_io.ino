@@ -1,4 +1,5 @@
-/*For functions that handle PC input and output.
+/*
+For functions that handle PC input and output.
 */
 
 void handle_pc_input() {
@@ -25,7 +26,6 @@ void handle_pc_input() {
                 if (run_option == 0) {
                     amp = 0;
                 }
-
                 amp_step = 0;
                 old_amp_step = 0;
                 strain_closing_in = 0;
@@ -40,7 +40,7 @@ void handle_pc_input() {
                 delta_num = 0;
                 pest_num = -1;
                 feed_num = -1;
-
+            
             } else if (mode == 1) { //bitRead(mode,0) == 1)
                 if (run_option == 0) {
                     set_strain = val;
@@ -72,7 +72,6 @@ void handle_pc_input() {
                     DC_func -= 1;
                 }
                 //amp_step /= 2;
-
             } else if (mode == 0b00000100) {
                 if (run_option == 1 && amp < 2048) {
                     amp += 1;
@@ -80,14 +79,12 @@ void handle_pc_input() {
                 if (run_option == 2 && DC_func < 4095) {
                     DC_func += 1;
                 }
-                
                 /* 
                 amp_step *= 2;
-              if(amp_step == 0){
-                amp_step = 1;
-              }
-              */
-
+              	if(amp_step == 0){
+                	amp_step = 1;
+              	}
+              	*/
             }
 
         } else if (mode == 0b00001000) {
@@ -96,7 +93,6 @@ void handle_pc_input() {
             amp_step = 0;
             old_amp_step = 0;
             strain_closing_in = 0;
-
         } else if (mode == 0b00010000) {
             //keep stress amplitude constant
             run_option = 1;
