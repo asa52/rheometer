@@ -5,7 +5,7 @@ void handle_const_strain_feedback() {
 
     if ((pos <= 1558 || pos >= 3633) && amp >= 1) {
         if (0 == run_option) {
-            amp -= 1;
+            amp -= 1; // what?
         }
         send_out_of_bounds_values();
         if (freq_check == 1) {
@@ -254,7 +254,7 @@ void handle_const_strain_feedback() {
 
             }
 
-            p++;
+            p++; // sends different things on different cycles to keep cycle time the same
         }
 
         if (p == range) { // once sampled over 4 cycles, extract information
@@ -401,6 +401,7 @@ void adaptive_step_calculation_for_const_strain() {
 }
 
 void settle_amp() {
+	 // attempt to have it regulate its amplitude?
     //int step_attempt = 0;
     //int sign = 1;
 

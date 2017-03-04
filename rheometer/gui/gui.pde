@@ -1,6 +1,9 @@
 import java.util.Arrays;
 import processing.serial.*;
 
+// what are the gui plots? how do they update?
+// how do the gui and arduino talk to each other?
+
 String portName;
 Serial serialPort;
 int speed = 115200;
@@ -17,12 +20,12 @@ int[] DAC1 = new int[1024], A0 = new int[1024];
 float freq_val; 
 int strain_val, stress_val, func_val, stress_rate = 120;
 int k_val, b_val, eq_val;
-byte[] val_in = new byte[5];
+byte[] val_in = new byte[5]; //this has 5 here - the 0th correspomds to mode in the ino code
 long last_time, time_difference, time_t_0;
 long[] dt_ns = new long[1024];
 int[] dt_ms = new int[1024];
 
-PrintWriter output;
+PrintWriter output; //?
 
 class menu_button {
   int x_0, y_0, x_width = 128, y_width = 26;
@@ -150,8 +153,8 @@ void setup() {
   serialPort = new Serial(this, portName, speed);
   System.out.println( "Opened port " + portName); //debug
 
-  strain_axis("microns", 150);
-  stress_axis("nNm", 12);
+  strain_axis("microns", 150); //linear displacement
+  stress_axis("nNm", 12); //torque, calculated from the current input
   time_axes("ms", 1.67);
   initialise_interface();
 }
@@ -160,33 +163,33 @@ void draw() {
 
   display_text();
 
-  oscilloscope();
+  oscilloscope(); //put pixel where there is data point
 }
 
-void serialEvent( Serial port) {
+void serialEvent( Serial port) { //happens as soon as serial event, is an interrupt
   while ( port.available() > 0) {
 
-    if (i == 0) {
-      c1 = port.read();
+    if (i == 0) { //counting variable 
+      c1 = port.read(); //first byte
     }
 
     if (i == 1) {
-      c2 = port.read();
+      c2 = port.read(); //second byte
 
       if (64 > c2) {
         thread("time_nano_to_micro");
         //time_nano_to_micro();
-        DAC1[t_d] = c1 + c2*256;
+        DAC1[t_d] = c1 + c2*256; //sending a 12 bit value so put together thr 2 received bytes
         //System.out.print( c1 + " " + c2 + " " + c + " \n" ); //debug
         //System.out.print(DAC1[t_d] + " \n");
         t_d++;
 
         if ((t_d % interval) == 0) {
-          pos_d = t_d;
+          pos_d = t_d;  //for drawing, decides where gap in oscilloscope is, so data overwritten on gap.
         }
 
         if (t_d >= (width - 2*x_offset) ) {
-          t_d = 0;
+          t_d = 0; //corresponds to time for either upper or lower graph
           pos_d = t_d;
         }
         i = -1;
@@ -196,7 +199,7 @@ void serialEvent( Serial port) {
       if (64 <= c2 && 128 > c2) {
         A0[t_a] = c1 + (c2-64)*256;
         //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
-        t_a++;
+        t_a++; //upper graph time
 
         if ((t_a % interval) == 0) {
           pos_a = t_a;
@@ -216,7 +219,7 @@ void serialEvent( Serial port) {
     }
 
     if (i == 2) {
-      c3 = port.read();
+      c3 = port.read(); // another byte sent - only sent sometimes - symmetry, p2p, etc. values comes in as third byte.
 
       if (t_sent) {
         t = c3;
@@ -267,7 +270,7 @@ void serialEvent( Serial port) {
   }
 }
 
-void delay(int delay)
+void delay(int delay) // custpmary delay function to impl,ement a paause in the code, may not be used. to keep the process idle for some time.
 {
   int time = millis();
   while (millis() - time <= delay);
@@ -275,7 +278,7 @@ void delay(int delay)
 
 void keyPressed() {
 
-  if (type_frequency.box_selected) {
+  if (type_frequency.box_selected) { //if in a text window, checks which key is being pressed and send to right text box
     typing_cursor = type_frequency.variable_text.length() - (type_frequency.cursor_position + 1);
     System.out.println("frequency cursor_position = " + type_frequency.cursor_position);
   } else if (type_set_strain.box_selected) {
@@ -298,7 +301,7 @@ void keyPressed() {
     typing = "";
     typing_cursor = -1;
 
-    if (type_frequency.box_selected) {
+    if (type_frequency.box_selected) { //covert frequency to timer counter understandble value
       freq_val = float(saved);
       float t_unit = (1000.0 / (freq_val*120.0) );    
       time_axes("ms", t_unit);
@@ -321,13 +324,13 @@ void keyPressed() {
         strain_val = int(saved);
         if ( 100 <= strain_val && 4000 >= strain_val ) {
           val = strain_val;  
-          val_in[0] = 1;
+          val_in[0] = 1; //first byte is mode, what is being fed in?
           send_ok = true;
           type_set_strain.constant_text = saved + " mum/10";
           set_strain_text = saved;
         }
       } else if (epsig.button_activated) {
-        stress_val = int(saved);
+        stress_val = int(saved); //saved is what you have type in as a string - explicitly converting this to an integer
         if ( 0 <= stress_val && 2048 >= stress_val ) {
           val = stress_val;
           val_in[0] = 1;
@@ -381,7 +384,7 @@ void keyPressed() {
       //debug = saved;
       saved = "";
 
-
+      //encode val into val_in 
       val_in[4] = (byte) ((val >> 24) & 0xFF);
       val_in[3] = (byte) ((val >> 16) & 0xFF);
       val_in[2] = (byte) ((val >> 8) & 0xFF);
@@ -458,7 +461,7 @@ void keyPressed() {
     if (key == 'w' && 2048 > amp) {
       val_in[0] = 4;
       serialPort.write(val_in[0]);
-      type_set_strain.constant_text = (amp + 1) + " of 2048";
+      type_set_strain.constant_text = (amp + 1) + " of 2048"; //amp is the amplitude to be in DAC1 (cannot exceed 12 bit value)
       //delay(100);
     } else if (key == 's' && 0 < amp) {
       val_in[0] = 2;
@@ -726,7 +729,7 @@ void oscilloscope() {
       stroke(255);  
       //point(j, 290 - (A0[j]-2048)/20);
       //point(j, 290 - ((A0[j]-5980)/50));
-      point(x_offset + j, (top_strain_pixel + y_half_axis_pixel) - ((A0[j]-6000)/47));
+      point(x_offset + j, (top_strain_pixel + y_half_axis_pixel) - ((A0[j]-6000)/47)); //starts from top left hand corner
     }
     if ( pos_a == (width - 2*x_offset) ) {
       pos_a = 0;

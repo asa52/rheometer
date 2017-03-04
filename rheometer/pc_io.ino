@@ -4,17 +4,17 @@
 void handle_pc_input() {
     if (SerialUSB.available() > 0) {
         mode = SerialUSB.read(); //first byte encodes input type
-        //REG_TC0_RC0 *= 2;
+        //REG_TC0_RC0 *= 2;	// what does this do?
         if (mode == 0 || mode == 1 || mode == 3 || mode == 5) {
             SerialUSB.readBytes(val_in, 4);
             for (int i = 0; i < 8; i++) {
                 for (int j = 0; j < 4; j++) {
-                    bitWrite(val, i + j * 8, bitRead(val_in[j], i));
+                    bitWrite(val, i + j * 8, bitRead(val_in[j], i));	// what is this doing
                 }
             }
             /*
             if(val == 1024){
-              REG_TC0_RC0 *= 2;
+              REG_TC0_RC0 *= 2; ?????
             }
             */
 
@@ -30,8 +30,8 @@ void handle_pc_input() {
                 old_amp_step = 0;
                 strain_closing_in = 0;
 
-                // interrupt handler intervals have changed size
-                // restart data aqcuisition processes
+                // interrupt handler intervals have changed size ???
+                // restart data aqcuisition processes
                 freq_check = 0;
                 p = 0;
                 A0_period_count = 0;
@@ -62,7 +62,7 @@ void handle_pc_input() {
                 equilibrium_A0 = val;
             }
 
-        } else if ((mode == 0b00000010 || mode == 0b00000100) && (run_option == 1 || run_option == 2)) {
+        } else if ((mode == 0b00000010 || mode == 0b00000100) && (run_option == 1 || run_option == 2)) {	
             if (mode == 0b00000010) {
                 if (run_option == 1 && amp > 0) {
                     amp -= 1;
@@ -132,7 +132,7 @@ void handle_pc_input() {
 // ~~~~~~~~~~ beginning of space for functions that send data via SerialUSB ~~~~~~~~~~
 
 void send_3_byte_value(int value, byte third_byte) {
-    // give 3rd byte in binary 0b7th6th5th4th3rd2nd1st0th
+    // give 3rd byte in binary 0b7th6th5th4th3rd2nd1st0th - why is this useful?
 
     b[0] = value;
 
@@ -143,15 +143,16 @@ void send_3_byte_value(int value, byte third_byte) {
 
     bitSet(b[1], 7);
     b[2] = third_byte;
-    SerialUSB.write(b, 3);
+    SerialUSB.write(b, 3); // why bitwise?
     bitClear(b[1], 7);
     bitClear(b[1], 6);
     b[2] = 0;
 }
 
 void send_out_of_bounds_values() {
+	// what is this function doing? was this tested?
     int excess;
-    if (pos <= 1558) {
+    if (pos <= 1558) { //why is this out of bounds?
         excess = 0;
     } else {
         excess = 12000;
@@ -192,6 +193,7 @@ void send_func() {
 }
 
 void send_mu() {
+	// why send like this as opposed to serial.println?
     b[0] = mu; //set byte b[0] equal to rightmost / lowest byte of 32 bit integer mu
 
     for (int i = 8; i <= 13; i++) {  // set byte b[1]'s bits # 0 to 5 equal
@@ -217,6 +219,7 @@ void send_pos() {
 }
 
 void map_centre_back_to_pos(int last_pos, int try_num, int twos) {
+	// what does this do? map to nearest integer value if float
     if (try_num < 10 && A0mu[last_pos] != centre) {
         if (A0mu[last_pos] < centre) {
             try_num += 1; //start counting from 1 not 0 tries

@@ -28,7 +28,7 @@ static int waveformsTable[sample_num] = {
         0x3ff, 0x45d, 0x4be, 0x521, 0x586, 0x5ed, 0x655, 0x6bf, 0x729, 0x794
 };
 
-byte b[3] = {0, 0, 0}, mode, val_in[4] = {0, 0, 0, 0};
+byte b[3] = {0, 0, 0}, mode, val_in[4] = {0, 0, 0, 0}; // explain each variable and the different modes
 int measure = 0, run_option = 0;
 int func = 0, pos = 0, centre, peak, trough, pos_0 = 1558, mu, mu_tol = 40, set_strain = 2048;
 int step_count = 0, sign_change_count = 0, strain_closing_in = 0, A0_amp, dA0dt_amp;
@@ -42,14 +42,14 @@ int dmudt, darraydt[range], DC_func = 2047, NR = 0, korb = 0, simu_k = 0, simu_b
 int centre_mode = 0, equilibrium_A0 = -1, used_zero_A0, simu_k_unit = 128, simu_b_unit = 128;
 int peak_to_peak, upper_amplitude, lower_amplitude, centre_estimated = 0;
 int freq_check = 0, pos_rec, A0_period_estimate_mean = 0, A0_period_count = 0;
-unsigned long int t_i = 0, t_f = 0, val = 70000;//35000;//175000*4;
+unsigned long int t_i = 0, t_f = 0, val = 70000;//35000;//175000*4; //does this correspond to what the gui says when turned on? check
 int array[range], peaksnt[8][4], troughsnt[8][4], rec_times[32], A0_period_estimates[16];
 int phase_estimates[16], pest_num = -1, feed_num = -1, sym_check, pest_check, e_num = -1;
 int cycle_counter = 0;
 int mu_one_back, mu_two_back;
 
 void handle_pc_input();
-void spike_filter();
+void spike_filter(); //??
 void handle_const_strain_feedback();
 void adaptive_step_calculation_for_const_strain();
 void settle_amp();
