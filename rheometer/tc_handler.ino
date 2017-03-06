@@ -5,17 +5,12 @@ void TC0_Handler() {
     long dummy = REG_TC0_SR0; // vital - reading this clears some flag
     // otherwise you get infinite interrupts
 
-    //bitSet(REG_PIOB_SODR, 26);
-
     pos = analogRead(measure); //reads the voltage at analog pin A0
 
     if ((pos >= 1558 && pos <= 3633)) {
         // TODO Why this limit on the pos value?
         int num = (pos - pos_0); // Convert to index from which the voltage from A0 can be converted into TODO 'distance values'
-        //mu_two_back = mu_one_back;
-        //mu_one_back = mu;
         mu = A0mu[num]; //0.1 microns
-        //send_mu();
     }
 
     if (centre_mode == 1) {
@@ -32,16 +27,12 @@ void TC0_Handler() {
         func = DC_func;
     } else if (NR == 1 && (run_option == 0 || run_option == 1)) {
         func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048)
-                + ((//( (mu_two_back - used_zero_A0) + (mu_one_back - used_zero_A0) + (mu - used_zero_A0) )
-                    //( (mu_one_back - used_zero_A0) + (mu - used_zero_A0) )
-                    (mu - used_zero_A0) * simu_k) / (simu_k_unit))  // elastic response - CHECK
+                + (((mu - used_zero_A0) * simu_k) / (simu_k_unit))  // elastic response - CHECK
                 + ((dmudt * simu_b) / (simu_b_unit)))  // viscous response - CHECK
                + 2047;  // midpoint
     } else if (NR == 1 && run_option == 2) {
         func = DC_func 
-               + ((//( (mu_two_back - used_zero_A0) + (mu_one_back - used_zero_A0) + (mu - used_zero_A0) )
-                   //( (mu_one_back - used_zero_A0) + (mu - used_zero_A0) )
-                   (mu - used_zero_A0) * simu_k) / (simu_k_unit))
+               + (((mu - used_zero_A0) * simu_k) / (simu_k_unit))
                + ((dmudt * simu_b) / (simu_b_unit));
     }
 
@@ -71,14 +62,9 @@ void TC0_Handler() {
         func = dmudt + 2047;
     }
 
-    //send_func(); //send the DAC1 output value via SerialUSB to the PC
     if ((pos >= 1558 && pos <= 3633)) {
         send_mu(); // send mu via serialUSB ???? why after all of the stuff above? commented out for now in favour of println
-        //SerialUSB.println(mu);	// is this too slow? why was this not implemented?
     }
-
-    //cycle_counter = 1 - cycle_counter;
-    //digitalWrite(42,cycle_counter);
 
     handle_const_strain_feedback();
     handle_pc_input();
@@ -87,6 +73,4 @@ void TC0_Handler() {
     if (t == sample_num) {
         t = 0; // Reset the counter to repeat the wave
     }
-
-    //bitSet(REG_PIOB_CODR,26); what does this do?
 }

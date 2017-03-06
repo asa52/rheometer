@@ -4,7 +4,6 @@
 void handle_pc_input() {
     if (SerialUSB.available() > 0) {
         mode = SerialUSB.read(); //first byte encodes input type
-        //REG_TC0_RC0 *= 2;	// what does this do?
         if (mode == 0 || mode == 1 || mode == 3 || mode == 5) {
             SerialUSB.readBytes(val_in, 4);
             for (int i = 0; i < 8; i++) {
@@ -12,11 +11,6 @@ void handle_pc_input() {
                     bitWrite(val, i + j * 8, bitRead(val_in[j], i));	// what is this doing
                 }
             }
-            /*
-            if(val == 1024){
-              REG_TC0_RC0 *= 2; ?????
-            }
-            */
 
             if (mode == 0) {
                 REG_TC0_RC0 = val;
@@ -41,7 +35,7 @@ void handle_pc_input() {
                 pest_num = -1;
                 feed_num = -1;
 
-            } else if (mode == 1) { //bitRead(mode,0) == 1)
+            } else if (mode == 1) {
                 if (run_option == 0) {
                     set_strain = val;
                     amp_step = 0;
@@ -71,7 +65,6 @@ void handle_pc_input() {
                 if (run_option == 2 && DC_func > 0) {
                     DC_func -= 1;
                 }
-                //amp_step /= 2;
 
             } else if (mode == 0b00000100) {
                 if (run_option == 1 && amp < 2048) {
@@ -80,14 +73,6 @@ void handle_pc_input() {
                 if (run_option == 2 && DC_func < 4095) {
                     DC_func += 1;
                 }
-                
-                /* 
-                amp_step *= 2;
-              if(amp_step == 0){
-                amp_step = 1;
-              }
-              */
-
             }
 
         } else if (mode == 0b00001000) {
@@ -213,9 +198,7 @@ void send_pos() {
         bitWrite(b[1], i - 8, bitRead(pos, i));
     }
 
-    //bitSet(b[1],6);
     SerialUSB.write(b, 2);
-    //bitClear(b[1],6);
 }
 
 void map_centre_back_to_pos(int last_pos, int try_num, int twos) {

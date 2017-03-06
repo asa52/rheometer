@@ -32,7 +32,6 @@ class menu_button {
   String button_text = "";
   int button_text_height = 12;
   boolean button_activated = false;
-  //int text_x_0 = (x_0 + x_width/2), text_y_0 = (y_0 + y_width/2 + button_text_height/2) ; 
   int opagueness = 64;
   color button_colour = color(150, 150, 150), text_colour = color(255, 255, 255); 
 
@@ -178,10 +177,7 @@ void serialEvent( Serial port) { //happens as soon as serial event, is an interr
 
       if (64 > c2) {
         thread("time_nano_to_micro");
-        //time_nano_to_micro();
         DAC1[t_d] = c1 + c2*256; //sending a 12 bit value so put together thr 2 received bytes
-        //System.out.print( c1 + " " + c2 + " " + c + " \n" ); //debug
-        //System.out.print(DAC1[t_d] + " \n");
         t_d++;
 
         if ((t_d % interval) == 0) {
@@ -198,7 +194,6 @@ void serialEvent( Serial port) { //happens as soon as serial event, is an interr
 
       if (64 <= c2 && 128 > c2) {
         A0[t_a] = c1 + (c2-64)*256;
-        //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
         t_a++; //upper graph time
 
         if ((t_a % interval) == 0) {
@@ -227,37 +222,30 @@ void serialEvent( Serial port) { //happens as soon as serial event, is an interr
         if (0 == c3) { // none of the 3 byte's bits have other than signalling contant
           // thus equality is sufficient for comparison
           amp = c1 + c2*256;
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
-        }
+       }
 
         if (1 == c3) {
           sym_check = c1 + c2*256;
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
         }
 
         if (2 == c3) {
           centre = c1 + c2*256;
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
         }
 
         if (4 == c3) {
           peak_to_peak = c1 + c2*256;
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
         }
 
         if (8 == c3) {
           A0_period_estimate = c1 + c2*256;
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
-        }
+       }
 
         if (16 == c3) {
           phase_estimate = c1 + c2*256;
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
         } 
 
         if (17 == c3) {
           phase_estimate = (c1 + (c2-128)*256);
-          //System.out.print( c1 + " " + c2 + " pos = " + pos + " \n");
         }
       }
       i = 1;
@@ -381,7 +369,6 @@ void keyPressed() {
 
     if (send_ok) {  
       System.out.println( "val = " + val);
-      //debug = saved;
       saved = "";
 
       //encode val into val_in 
@@ -547,24 +534,6 @@ void mousePressed() {
     }
   }
 
-  /*
-            if(fsweep.check_mouse_on_button()){
-   fsweep.button_activated = !fsweep.button_activated;
-   if(fsweep.button_activated){
-   type_set_strain.box_selected = false;
-   type_frequency.box_selected = false;
-   if(!epsig.button_activated){
-   thread("frequency_sweep");
-   fsweep.button_text = "1-20 Hz sweep";
-   }
-   else if(epsig.button_activated){
-   thread("stress_of_time");
-   fsweep.button_text = "1 per cycle";
-   }
-   }
-   else{fsweep.button_text = "manual mode";}
-   }*/
-
 
   if (epsig.check_mouse_on_button() && !ACDC.button_activated) {
     epsig.button_activated = !epsig.button_activated;
@@ -585,7 +554,6 @@ void mousePressed() {
     } else {
       epsig.button_text = "strain";
       type_set_strain.constant_text = set_strain_text + " mum/10";
-      //type_set_strain.constant_text = "mum/10";
       val_in[0] = 8;
       serialPort.write(val_in[0]);
       System.out.println("val_in[0] = " + val_in[0]);
@@ -597,8 +565,6 @@ void mousePressed() {
     if (ACDC.button_activated) {
       ACDC.button_text = "DC";
       type_set_strain.constant_text = set_DC_text + " of 4095";
-      //val_in[0] = 128; //byte is signed in Processing
-      //so can only have -127 <= byte <= +127
       val_in[0] = 7;
       serialPort.write(val_in[0]);
       System.out.println("val_in[0] = " + val_in[0]);
@@ -625,11 +591,7 @@ void mousePressed() {
       if (NRview.button_activated) {
         NRview.button_activated = false;
         NRview.button_text = "drive";
-      }/*
-               if(Torv.button_activated){
-       Torv.button_activated = false;
-       Torv.button_text = "T";
-       }*/
+      }
       NRonoff.button_text = "NR on";
       val_in[0] = 64;
       serialPort.write(val_in[0]);
@@ -727,8 +689,6 @@ void oscilloscope() {
     }
     for (j = (pos_a - interval); j <= (pos_a - 1); j++) {
       stroke(255);  
-      //point(j, 290 - (A0[j]-2048)/20);
-      //point(j, 290 - ((A0[j]-5980)/50));
       point(x_offset + j, (top_strain_pixel + y_half_axis_pixel) - ((A0[j]-6000)/47)); //starts from top left hand corner
     }
     if ( pos_a == (width - 2*x_offset) ) {
@@ -747,8 +707,6 @@ void oscilloscope() {
     for (j = (pos_d - interval); j <= (pos_d - 1); j++) {
       stroke(255);  
       point(x_offset + j, (top_stress_pixel + y_half_axis_pixel) - ((DAC1[j]-2048)/16));
-      //point(j, 530 - (DAC1[j]-5980)/60);
-      //point(j, 290 - ((A0[j]-5980)/60));
     }
     if ( pos_d == (width - 2*x_offset) ) {
       pos_d = 0;
@@ -757,7 +715,6 @@ void oscilloscope() {
     stroke(100);
     fill(100);
     rect(x_offset + pos_d, top_stress_pixel, interval, 2 * y_half_axis_pixel);
-    //rect(pos_d, 180, interval, 240);
   }
 }
 
@@ -772,31 +729,13 @@ void display_text() {
   fill(255);
   text("Reading: " + portName, 10, 20);
   text("Received " + bytesReceived + " bytes.", 10, 50);
-  /*
-      if(t_d == 0){
-   text("DAC1 value " + DAC1[t_d] + " of 0 to 4095", 20, 80);
-   }
-   else{
-   text("DAC1 value " + DAC1[t_d - 1] + " of 0 to 4095", 20, 80);
-   }
-   if(t_a == 0){
-   text("mu value " + A0[t_a] + " in microns/10", 20, 110);
-   }
-   else{
-   text("mu value " + A0[t_a - 1] + " in microns/10", 20, 110);  
-   }*/
   text("DAC1 value " + DAC1[t_d] + " of 0 to 4095", 10, 80);
   text("mu value " + A0[t_a] + " in microns/10", 10, 110);
 
   text("amp value " + amp + " of 0 to 2048", 170, 20);
-  //text("phase estimate " + (float(phase_estimate)/60.0) + " PI t = " + t, 200, 50);
   text("phase estimate " + phase_estimate + " steps, t = " + t, 170, 50);
   text("centre value " + centre + " in microns/10", 170, 80);
   text("A0 amp " + round(peak_to_peak/2) + " in microns/10", 170, 110);
-
-  //text(typing,420,20);
-  //text(saved,420,50);
-  //text("DAC1 t diff " + dt_ns[1] + " in nanoseconds", 420, 80);
   text("Response period " + A0_period_estimate + " in t diff", 340, 80);
   text("DAC1 t diff " + dt_ms[1] + "   in microseconds", 340, 110);
 
@@ -804,8 +743,7 @@ void display_text() {
   type_set_strain.draw_box();
   type_file_name.draw_box();
   type_set_simu.draw_box();
-  wfile.draw_button();
-  //fsweep.draw_button();        
+  wfile.draw_button();      
   oworcat.draw_button();
   epsig.draw_button();
   NRonoff.draw_button();
@@ -821,7 +759,6 @@ void initialise_interface() {
 
   wfile.x_0 = 560;
   wfile.y_0 = 70;
-  //fsweep.x_0 = 560;fsweep.y_0 = 100;
   oworcat.x_0 = 560;
   oworcat.y_0 = 40;
   epsig.x_0 = 470;
@@ -860,8 +797,6 @@ void initialise_interface() {
   type_frequency.constant_text = frequency_text + " Hz";
   type_set_strain.constant_text = set_strain_text + " mum/10";
   type_set_simu.constant_text = set_simu_k_text + " kDAC1eq";
-  //type_frequency.variable_text = "5";
-  //type_set_strain.variable_text = "2048";
   type_file_name.variable_text = "rheo_data_"+ day() + "_" + month() + "_" + year() + ".txt";
   wfile.button_text = "write file OFF";
   fsweep.button_text = "manual mode";
@@ -916,19 +851,12 @@ void strain_axis(String strain_axis_label, int strain_unit) {
   fill(255);
   line(x_offset - 2, top_strain_pixel, x_offset - 2, top_strain_pixel + 2 * y_half_axis_pixel);
 
-  //point(x_offset - 3, top_strain_pixel + y_half_axis_pixel);
-  //point(x_offset - 4, top_strain_pixel + y_half_axis_pixel);
   textSize(strain_text_height);
   textAlign(CENTER);
   text(strain_axis_label, x_offset, top_strain_pixel - strain_text_height/2);
   textAlign(RIGHT);
-  //text(0, x_offset - 6, top_strain_pixel + y_half_axis_pixel);
 
-  for (int i=0; i <= num_strain_div; i++) {/*
-    point(x_offset - 3, (top_strain_pixel + y_half_axis_pixel) + i * strain_div_height);
-   point(x_offset - 4, (top_strain_pixel + y_half_axis_pixel) + i * strain_div_height);
-   text((-1) * i * strain_unit, x_offset - 6, (top_strain_pixel + y_half_axis_pixel) + i * strain_div_height + strain_text_height/2);
-   */
+  for (int i=0; i <= num_strain_div; i++) {
 
     point(x_offset - 3, (top_strain_pixel + 2*y_half_axis_pixel) - i * strain_div_height);
     point(x_offset - 4, (top_strain_pixel + 2*y_half_axis_pixel) - i * strain_div_height);
@@ -1043,7 +971,6 @@ void concatenate_file() {
         output.println(file_buffer[j]);
       }
     } else if ( null == loadStrings(type_file_name.variable_text) ) {
-      //System.out.println("loadStrings returns null pointer");
       output = createWriter(type_file_name.variable_text);
     }
   }
@@ -1064,13 +991,6 @@ void concatenate_file() {
         + amp + "\t" + phase_estimate + "\t"
         + centre + "\t" + round(peak_to_peak/2.0) + "\t"
         + A0_period_estimate); 
-      /* 
-       output.println( ( (t_d_overflow * ( width - 2*x_offset ) ) + t_d) + "\t" + t + "\t"
-       + dt_ms[t_d] + "\t" + DAC1[t_d] + "\t" + A0[t_a] + "\t" 
-       + amp + "\t" + phase_estimate + "\t"
-       + centre + "\t" + round(peak_to_peak/2.0) + "\t"
-       + A0_period_estimate);
-       */
       last_t_d = t_d;
     }
   }
@@ -1158,13 +1078,7 @@ void frequency_sweep() {
       val_in[1] = (byte) (val & 0xFF);
 
 
-      serialPort.write(val_in);/*
-   System.out.println( " val_in[0] = " + val_in[0]
-       + " val_in[1] = " + val_in[1]
-       + " val_in[2] = " + val_in[2]
-       + " val_in[3] = " + val_in[3]
-       + " val_in[4] = " + val_in[4]);*/
-      //debug
+      serialPort.write(val_in);
       t_unit = (1000.0 / (freq_val*120.0) );    
       time_axes("ms", t_unit);
 

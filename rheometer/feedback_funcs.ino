@@ -136,10 +136,8 @@ void handle_const_strain_feedback() {
                     centre_estimated = 0;
                     break;
             }
-            //send_3_byte_values();
 
         }
-        //mu = A0mu[pos - pos_0];
 
         if (p < range) {
             array[p] = mu;
@@ -154,9 +152,7 @@ void handle_const_strain_feedback() {
                 dmudt = ((array[p] - array[p - 1]) / dt);
             } else if (p == 0) {
                 dmudt = ((array[0] - array[range - 1]) / dt);
-            }/*else if (1 == p){
-            dmudt = ((array[p-1] - array[range-1])/dt);
-          }*/
+            }
 
             darraydt[p] = dmudt;
 
@@ -271,16 +267,10 @@ void handle_const_strain_feedback() {
 
             sym_check = (upper_amplitude - lower_amplitude);
 
-            //Serial.println(centre);
-            //Serial.println(peak);
             p = 0;
-            //old_peak_to_trough = peak - trough;
 
-
-            //if( 2 == freq_check || 1 == freq_check){
             map_centre_back_to_pos(1038, 0, 1);
             freq_check = 1;
-            //}
 
         }
 
@@ -402,8 +392,6 @@ void adaptive_step_calculation_for_const_strain() {
 
 void settle_amp() {
 	 // attempt to have it regulate its amplitude?
-    //int step_attempt = 0;
-    //int sign = 1;
 
     if (mean_tried == 0) {
         amp = mean_amp;
@@ -416,41 +404,5 @@ void settle_amp() {
     }
 
     amp_step = 1;
-    /*
-    if(sign_change_count <= 3){
-      if((((peaksnt[feed_num][0] - troughsnt[feed_num][0])/2) < set_strain)){
-        sign = -1;
-    }
 
-    if(amp_step_deviation <= 32 && attempt_count < 4){
-        step_attempt = (amp_step_deviation / 4);
-    } else if (amp_step_deviation <= 16 && attempt_count < 4){
-        step_attempt = 4;
-    } else {
-        step_attempt = 2;
-    }
-
-    if(attempt_count > 0){
-        if((past_attempts[attempt_count] > 0 && past_attempts[attempt_count - 1] < 0) || 
-            (past_attempts[attempt_count] < 0 && past_attempts[attempt_count - 1] > 0)){
-            sign_change_count ++;
-        }
-    }
-    if((mean_amp + mean_amp_step) <= 2048 && (mean_amp + mean_amp_step) >= (amp + step_attempt) && 
-        (mean_amp - mean_amp_step) <= (amp - step_attempt) && mean_amp > mean_amp_step){
-        past_attempts[attempt_count] = sign * step_attempt;
-        amp_step = step_attempt;
-    }
-
-    attempt_count ++;
-
-    } else {
-        amp_step = 1;
-    }
-
-    if(8 == attempt_count){
-        sign_change_count = 0;
-        attempt_count = 0;
-    }
-    */
 }
