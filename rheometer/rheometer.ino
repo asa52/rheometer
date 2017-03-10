@@ -29,7 +29,7 @@ static int waveformsTable[sample_num] = {
 };
 
 byte b[3] = {0, 0, 0}, mode, val_in[4] = {0, 0, 0, 0}; // explain each variable and the different modes
-int measure = 0, run_option = 0;
+int measure = 0, run_option = 2;
 int func = 0, pos = 0, centre, peak, trough, pos_0 = 1558, mu, mu_tol = 40, set_strain = 2048;
 int step_count = 0, sign_change_count = 0, strain_closing_in = 0, A0_amp, dA0dt_amp;
 int mean_amp_step = 0, max_amp_step = 0, mean_amp = 0, mean_tried = 0, amp_step_deviation = 0;
@@ -38,7 +38,7 @@ int past_step_estimates[8], past_amp_steps[8], past_amps[8], past_attempts[8], p
 int amp = 64, old_peak_to_trough, old_amp_step = 1, amp_step = 4, old_amp = 64, fiddle = 2;
 int f = 0, p = 0, delta_num = 0, li = 0, corr, t_diff = 0, f_count = 0;
 int t = 0, last_t = 0, t_peak, t_trough, dt, t_dpeakdt, t_dtroughdt, dpeakdt, dtroughdt;
-int dmudt, darraydt[range], DC_func = 2047, NR = 0, korb = 0, simu_k = 0, simu_b = 0, Torv = 0;
+int dmudt, darraydt[range], DC_func = 2047, NR = 1, korb = 0, simu_k = 100000, simu_b = 1, Torv = 0;
 int centre_mode = 0, equilibrium_A0 = -1, used_zero_A0, simu_k_unit = 128, simu_b_unit = 128;
 int peak_to_peak, upper_amplitude, lower_amplitude, centre_estimated = 0;
 int freq_check = 0, pos_rec, A0_period_estimate_mean = 0, A0_period_count = 0;

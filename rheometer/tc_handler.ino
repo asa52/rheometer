@@ -16,7 +16,7 @@ void TC0_Handler() {
     if (centre_mode == 1) {
         used_zero_A0 = equilibrium_A0; //set zero point to some value you set
     } else {
-        used_zero_A0 = centre; // CHECK - ERROR centre does not appear to have been defined before this inequality is done - all ok?
+        used_zero_A0 = centre;
     }
 
     if (NR != 1 && (run_option == 0 || run_option == 1)) {
@@ -36,7 +36,6 @@ void TC0_Handler() {
                + ((dmudt * simu_b) / (simu_b_unit));
     }
 
-    //analogWrite(DAC1, func); // writes this sine wave to the DAC output pin 1
     if (func > 4095) {
         // if function too large, clip
         func = 4095;
@@ -63,7 +62,7 @@ void TC0_Handler() {
     }
 
     if ((pos >= 1558 && pos <= 3633)) {
-        send_mu(); // send mu via serialUSB ???? why after all of the stuff above? commented out for now in favour of println
+        send_mu(); // send mu via serialUSB to pc???? why after all of the stuff above? commented out for now in favour of println
     }
 
     handle_const_strain_feedback();
