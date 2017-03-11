@@ -2,9 +2,7 @@
 // d^2 theta/dt^2 = G / I - b / I * (d theta/dt) - k / I * theta
 
 #include <cmath>
-#include <ctime>
 #include <iostream>
-#include <chrono>
 #define n_eqns 2
 
 using namespace std;
@@ -28,26 +26,6 @@ double c4[n_eqns];
 double c5[n_eqns];
 double c6[n_eqns];
 double s = 1;
-
-// Timing code
-class Timer
-{
-public:
-    Timer(): beg_(clock_::now()) {}
-
-    void reset() { 
-    	beg_ = clock_::now(); 
-    }
-
-    double elapsed() const { 
-        return chrono::duration_cast<second_>
-            (clock_::now() - beg_).count(); }
-
-private:
-    typedef chrono::high_resolution_clock clock_;
-    typedef chrono::duration<double, ratio<1> > second_;
-    chrono::time_point<clock_> beg_;
-};
 
 
 void calc_G(double time){
@@ -154,12 +132,18 @@ void rkf45(){
 }
 
 int main(){
+<<<<<<< HEAD
 	Timer tmr;
 	for (int num_run; num_run < 100000; num_run++){
 		double runtime = tmr.elapsed();
 		cout << t << '\t' << y[0] << '\t' << y[1] << '\t' << runtime << endl;
 		rkf45();
 		tmr.reset();
+=======
+	for (int num_run; num_run < 1000000; num_run++){
+		cout << t << '\t' << y[0] << '\t' << y[1] << endl;
+		rk4();
+>>>>>>> parent of 3016a48... Timing code
 	}
 	return 0;
 }
