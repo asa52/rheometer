@@ -2,7 +2,9 @@
 // d^2 theta/dt^2 = G / I - b / I * (d theta/dt) - k / I * theta
 
 #include <cmath>
+#include <ctime>
 #include <iostream>
+#include <chrono>
 #define n_eqns 2
 
 using namespace std;
@@ -22,6 +24,26 @@ double c1[n_eqns];
 double c2[n_eqns];
 double c3[n_eqns];
 double c4[n_eqns];
+
+// Timing code
+class Timer
+{
+public:
+    Timer(): beg_(clock_::now()) {}
+
+    void reset() { 
+    	beg_ = clock_::now(); 
+    }
+
+    double elapsed() const { 
+        return chrono::duration_cast<second_>
+            (clock_::now() - beg_).count(); }
+
+private:
+    typedef chrono::high_resolution_clock clock_;
+    typedef chrono::duration<double, ratio<1> > second_;
+    chrono::time_point<clock_> beg_;
+};
 
 
 // Evaluate the derivatives: we work in the transformed variables
@@ -62,9 +84,12 @@ void rk4(){
 }
 
 int main(){
+	Timer tmr;
 	for (int num_run; num_run < 1000000; num_run++){
-		cout << t << '\t' << y[0] << '\t' << y[1] << endl;
+		double runtime = tmr.elapsed();
+		cout << t << '\t' << y[0] << '\t' << y[1] << '\t' << runtime << endl;
 		rk4();
+		tmr.reset();
 	}
 	return 0;
 }
