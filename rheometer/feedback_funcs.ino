@@ -5,13 +5,13 @@ void handle_const_strain_feedback() {
 
     if ((pos <= 1558 || pos >= 3633) && amp >= 1) {
         if (0 == run_option) {
-            amp -= 1; // what?
+            amp -= 1; // If outside range, decrease oscillation amplitude
         }
-        send_out_of_bounds_values();
-        if (freq_check == 1) {
+        //send_out_of_bounds_values(); CHANGE BACK
+        if (freq_check == 1) {// WHAT IS THIS
             t_diff++; // also count time of out of bounds events
         }
-    } else {
+    } else {//within range
         if (freq_check == 1) {
             if ((pos + 16) >= pos_rec && (pos - 16) <= pos_rec) { //points are sparse, so a strict recurrence condition can miss many cycles
                 if (val >= 175000) { //at freq < 2Hz shorter periods are presumably the 2Hz fundamental
@@ -73,65 +73,65 @@ void handle_const_strain_feedback() {
         if (centre_estimated == 1) {
             switch (p) {
                 case 0 :
-                    send_3_byte_value(amp, 0b00000000);
+                    //send_3_byte_value(amp, 0b00000000);CHANGE BACK
                     break;
                 case 3 :
-                    send_3_byte_value(sym_check, 0b00000001);
+                    //send_3_byte_value(sym_check, 0b00000001);CHANGE BACK
                     break;
                 case 5 :
-                    send_3_byte_value(centre, 0b00000010);
+                    //send_3_byte_value(centre, 0b00000010);CHANGE BACK
                     break;
                 case 7 :
-                    send_3_byte_value(peak_to_peak, 0b00000100);
+                    //send_3_byte_value(peak_to_peak, 0b00000100);CHANGE BACK
                     break;
                 case 9 :
-                    send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
+                    //send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);CHANGE BACK
                     break;
                 case 11 :
                     if (phase_estimates[delta_num] < 0) {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010001);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE BACK
                     } else {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010000);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE BACK
                     }
                     //centre_estimated = 0;
                     break;
                 case 125 :
-                    send_3_byte_value(amp, 0b00000000);
+                    //send_3_byte_value(amp, 0b00000000);CHANGE BACK
                     break;
                 case 129 :
-                    send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
+                    //send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);CHANGE BACK
                     break;
                 case 131 :
                     if (phase_estimates[delta_num] < 0) {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010001);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE BACK
                     } else {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010000);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE BACK
                     }
                     break;
                 case 245 :
-                    send_3_byte_value(amp, 0b00000000);
+                    //send_3_byte_value(amp, 0b00000000);CHANGE BACK
                     break;
                 case 249 :
-                    send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
+                    //send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);CHANGE BACK
                     break;
                 case 251 :
                     if (phase_estimates[delta_num] < 0) {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010001);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE BACK
                     } else {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010000);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE BACK
                     }
                     break;
                 case 365 :
-                    send_3_byte_value(amp, 0b00000000);
+                    //send_3_byte_value(amp, 0b00000000);CHANGE BACK
                     break;
                 case 369 :
-                    send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);
+                    //send_3_byte_value(A0_period_estimates[A0_period_count], 0b00001000);CHANGE BACK
                     break;
                 case 371 :
                     if (phase_estimates[delta_num] < 0) {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010001);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE BACK
                     } else {
-                        send_3_byte_value(phase_estimates[delta_num], 0b00010000);
+                        //send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE BACK
                     }
                     centre_estimated = 0;
                     break;

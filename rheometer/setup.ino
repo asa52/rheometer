@@ -4,7 +4,9 @@ void setup() {
     SerialUSB.begin(115200);
     analogWriteResolution(12);  // set the analog output resolution to 12 bit (4096 levels)
     analogReadResolution(12);   // set the analog input resolution to 12 bit (4096 levels)
-    pinMode(DAC1, OUTPUT);
+    pinMode(DAC0, OUTPUT);
+    // A0 not set as input pin????? what are pins 22 and 2
+    pinMode(A1, INPUT);
     pinMode(22, OUTPUT);
     pinMode(2, OUTPUT);   // port B pin 25
     analogWrite(2, 255);  // sets up some other registers I haven't worked out yet
@@ -30,7 +32,9 @@ void setup() {
     REG_DACC_ACR = 0b00000000000000000000000100001010;
     REG_DACC_IER = 1;
     REG_DACC_MR = 0b00001100000000010000100000000000;
-    bitSet(REG_DACC_CHER, 1);
+    bitSet(REG_DACC_CHER, 1); 
+    analogWrite(DAC0, 4096);
+    analogWrite(DAC0, 2047);
 }
 
 void loop() {

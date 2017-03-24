@@ -31,11 +31,10 @@ void TC0_Handler() {
                 + ((dmudt * simu_b) / (simu_b_unit)))  // viscous response - CHECK
                + 2047;  // midpoint
     } else if (NR == 1 && run_option == 2) {
-        func = DC_func 
-               + (((mu - used_zero_A0) * simu_k) / (simu_k_unit))
+        func = //DC_func + 
+               (((mu - used_zero_A0) * simu_k) / (simu_k_unit))
                + ((dmudt * simu_b) / (simu_b_unit));
     }
-
     if (func > 4095) {
         // if function too large, clip
         func = 4095;
@@ -44,8 +43,22 @@ void TC0_Handler() {
         // if too small, clip
         func = 0;
     }
-
-    REG_DACC_CDR = func; // analog write to DAC1 
+    //REG_DACC_CDR = func; // analog write to DAC1 
+    analogWrite(DAC0, func); //change to lower level code TODO
+    int actual_func = analogRead(A1);
+    time_t get_time = now();
+    SerialUSB.println("Dataset");
+    SerialUSB.println(t);
+    SerialUSB.println(get_time);
+    SerialUSB.println(mu);
+    SerialUSB.println(used_zero_A0);
+    SerialUSB.println(dmudt);
+    SerialUSB.println(func);
+    SerialUSB.println(actual_func);
+    //SerialUSB.println(simu_k);
+    //SerialUSB.println(simu_k_unit);
+    //SerialUSB.println(simu_b);
+    //SerialUSB.println(simu_b_unit);
 
     if (NR == 2 && (run_option == 0 || run_option == 1)) {
         func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048)
@@ -53,7 +66,7 @@ void TC0_Handler() {
                 + ((dmudt * simu_b) / (simu_b_unit)))
                + 2047;
     } else if (NR == 2 && run_option == 2) {
-        func = DC_func 
+        func = //DC_func 
                + ((((mu_one_back - used_zero_A0) + (mu - used_zero_A0)) * simu_k) / (simu_k_unit * 2))
                + ((dmudt * simu_b) / (simu_b_unit));
     } //prioritise NR view over velocity view
@@ -61,12 +74,12 @@ void TC0_Handler() {
         func = dmudt + 2047;
     }
 
-    if ((pos >= 1558 && pos <= 3633)) {
-        send_mu(); // send mu via serialUSB to pc???? why after all of the stuff above? commented out for now in favour of println
-    }
+    //if ((pos >= 1558 && pos <= 3633)) {
+        //send_mu(); // send mu via serialUSB to pc???? why after all of the stuff above? commented out for now in favour of println
+    //}
 
-    handle_const_strain_feedback();
-    handle_pc_input();
+    //handle_const_strain_feedback();
+    //handle_pc_input();
 
     t++; // counts number of completed computing cycles
     if (t == sample_num) {
