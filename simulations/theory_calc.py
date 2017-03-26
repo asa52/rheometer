@@ -2,8 +2,9 @@
 
 import numpy as np
 import simulations.helpers as h
+import matplotlib.pyplot as plt
 
-# TODO unit test code with varying numbers of data points!
+
 def calculate_cf(time, b, k, i):
     """Calculate the coefficients of A, B for the complementary function 
     solution of the oscillator ODE.
@@ -41,7 +42,7 @@ def find_w2_gamma(b, k, i):
     gamma = b / (2 * i)
     return w2, gamma
 
-# TODO errors here
+
 def calculate_sine_pi(t, b, k, i, g_0_mags, w_ds, phis):
     """Calculate the particular integral contributions to theta and omega.
     :param t: Array or single value of time values.
@@ -55,7 +56,6 @@ def calculate_sine_pi(t, b, k, i, g_0_mags, w_ds, phis):
     part."""
     # Check all parameters are of correct format.
     g_0_mags, w_ds, phis = h.check_types_lengths(g_0_mags, w_ds, phis)
-    b, k, i = h.make_same_dim(b, k, i, ref_dim_array=w_ds) #todo
 
     # Calculate the forcing torque's amplitude.
     a_0 = g_0_mags * (k - i * w_ds ** 2) / (
@@ -64,17 +64,24 @@ def calculate_sine_pi(t, b, k, i, g_0_mags, w_ds, phis):
 
     # Use these calculated values to work out theta and omega for the
     # required times.
-    time_bit = np.outer(w_ds, t)
-    a_0, b_0, phis = h.make_same_dim(a_0, b_0, phis, ref_dim_array=time_bit)
+    time_bit = np.outer(w_ds, t).squeeze()
+    a_0, b_0, phis, w_ds = h.make_same_dim(a_0, b_0, phis, w_ds,
+                                           ref_dim_array=time_bit)
     theta_pi = a_0 * np.sin(time_bit + phis) + b_0 * np.cos(time_bit + phis)
-    theta_pi = np.sum(theta_pi, axis=0)
     omega_pi = a_0 * w_ds * np.cos(time_bit + phis) - b_0 * w_ds * np.sin(
         time_bit + phis)
-    omega_pi = np.sum(omega_pi, axis=0)
+    if theta_pi.squeeze().ndim == 1 and omega_pi.squeeze().ndim == 1:
+        theta_pi = np.sum(theta_pi.squeeze())
+        omega_pi = np.sum(omega_pi.squeeze())
+    elif theta_pi.squeeze().ndim == 2 and theta_pi.squeeze().ndim == 2:
+        theta_pi = np.sum(theta_pi.squeeze(), axis=0)
+        omega_pi = np.sum(omega_pi.squeeze(), axis=0)
+    else:
+        raise Exception("Something has gone wrong with array dimensions!")
     return np.array([theta_pi, omega_pi])
 
 
-def solve_for_ics(t_i, theta_i, omega_i, b, k, i, g_0_mags, w_ds, phis):
+def solve_for_ics(t_i, theta_i, omega_i, b, k, i, baked_torque):
     """Calculate the coefficients for this ODE based on the initial conditions.
     :param t_i: Initial time.
     :param theta_i: Initial displacement.
@@ -82,16 +89,30 @@ def solve_for_ics(t_i, theta_i, omega_i, b, k, i, g_0_mags, w_ds, phis):
     :param b: Damping coefficient.
     :param k: Elastic coefficient.
     :param i: Moment of inertia.
-    :param g_0_mags: Array of forcing torques.
-    :param w_ds: Array of angular frequencies.
-    :param phis: Array of phases in radians.
+    :param baked_torque: The forcing torque with the relevant parameters 
+    baked in, such as amplitudes, period, phases.
     :return: The values of the coefficients A and B for the complementary 
     function."""
-    pis = (calculate_sine_pi(t_i, b, k, i, g_0_mags, w_ds, phis)).squeeze()
+    pis = (baked_torque(t_i, b, k, i)).squeeze()
     matrix = calculate_cf(t_i, b, k, i).squeeze()
     rhs_vector = (np.array([[theta_i], [omega_i]]).squeeze() - pis)
     return np.linalg.solve(matrix, rhs_vector)
 
 
-print(solve_for_ics(0, 1, 0, 4, 1, 1, [1, 2, 3], [np.pi / 2, np.pi, np.pi / 3],
-                    [0, 1, 0]))
+def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
+    """NOTE: t must be an array with at least 2 values. So should the torque 
+    amplitudes, phis and w_ds.
+    :param t: Array of time values to plot for.
+    :param t_i: Initial time.
+    :param y_i: Initial position, velocity.
+    :param b: Damping coefficient.
+    :param k: Elastic coefficient.
+    :param i: Moment of inertia.
+    :param baked_torque: The torque function to calculate the theta_ss 
+    parameters with relevant parameters baked in.
+    :return: Array of [t, theta, omega], each column being a different 
+    variable."""
+    cf_constants = solve_for_ics(t_i, y_i[0], y_i[1], b, k, i, baked_torque)
+    results = np.einsum('ijk,j', calculate_cf(t, b, k, i), cf_constants)
+    results += baked_torque(t, b, k, i)
+    return np.array([t, results[0], results[1]]).T
