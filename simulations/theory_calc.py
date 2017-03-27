@@ -114,8 +114,6 @@ def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
     variable."""
     cf_constants = solve_for_ics(t_i, y_i[0], y_i[1], b, k, i, baked_torque)
     cf_matrix = calculate_cf(t, b, k, i)
-
     results = np.einsum('ijk,j', cf_matrix, cf_constants)
     results += baked_torque(t, b, k, i)
-
     return np.array([t, results[0, :], results[1, :]]).T

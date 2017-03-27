@@ -1,0 +1,21 @@
+# Configuration parameters for rotational pendulum.
+# Time interval
+t0:               0
+t_fin:           10
+initial_dt:   0.001
+
+# Pendulum
+i_s: [.00000001, .0000001, .000001]
+bs:  [.000000001, .000000005, .00000001, .00000005, .0000001]
+ks:  [.0000005, .000001, .000005]
+b_prime:   0
+k_prime:   0
+theta_sim: 0
+omega_sim: 0
+
+# Variable parameters
+theta_0s: 0.3927
+omega_0s: 0.3927
+g_0_mags: [.0000001, .0000005, .000001] # Different forcing torque magnitudes to try one at a time.
+w_ds:     [25]
+phases:   [0]

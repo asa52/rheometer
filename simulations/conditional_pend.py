@@ -127,27 +127,25 @@ def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
     return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
 
 
-def main():
+def exp_vs_an_parameters():
     start_time = time.time()
-    # Constants for this test - doing with a single sine analytic forcing term
-    # only!
-    t0 = 0
-    b_prime = 0
-    k_prime = 0
-    theta_sim = 0
-    omega_sim = 0
-    t_fin = 10
-    initial_dt = 0.001
 
-    # Variable parameters
-    theta_0s = np.linspace(0, np.pi/4, 3)
-    omega_0s = np.linspace(0, np.pi/4, 3)
-    i_s = np.array([.00000001, .0000001, .000001])
-    bs = np.array([.000000001, .000000005, .00000001, .00000005, .0000001])
-    ks = np.array([.0000005, .000001, .000005])
-    g_0_mags = np.array([.0000001, .0000005, .000001])
-    w_ds = np.array([25])
-    phases = np.array([0])
+    config_dict = h.yaml_read('config.yaml')
+    t0 = config_dict['t0']
+    t_fin = config_dict['t_fin']
+    initial_dt = config_dict['initial_dt']
+    b_prime = config_dict['b_prime']
+    k_prime = config_dict['k_prime']
+    theta_sim = config_dict['theta_sim']
+    omega_sim = config_dict['omega_sim']
+    theta_0s = config_dict['theta_0s']
+    omega_0s = config_dict['omega_0s']
+    i_s = config_dict['i_s']
+    bs = config_dict['bs']
+    ks = config_dict['ks']
+    g_0_mags = config_dict['g_0_mags']
+    w_ds = config_dict['w_ds']
+    phases = config_dict['phases']
 
     max_norm_errs = []
     for g_0_mag in g_0_mags:
@@ -158,6 +156,7 @@ def main():
                         for i in i_s:
                             for b in bs:
                                 for k in ks:
+                                    # todo change t0, i, etc. to 0th indices.
                                     err = exp_vs_theory(
                                         [theta_0, omega_0], t0, i, b_prime,
                                         omega_sim, k_prime, theta_sim, b, k,
@@ -172,6 +171,26 @@ def main():
     np.savetxt('testing-sim-wo-norm-res.txt', max_norm_errs)
     runtime = time.time() - start_time
     print("runtime", runtime)
+    return
+
+
+def full_torque(t, omega_ds, amplitudes, phases, b_prime, k_prime):
+    """Get the full torque for the oscillator at time t.
+    :param t: A single time value in seconds.
+    :param omega_ds: Angular frequency of analytic part of torque.
+    :param amplitudes: Amplitude of ""
+    :param phases: Phase of "".
+    :param b_prime: Coefficient of d(theta)/dt (measured).
+    :param k_prime: Coefficient of theta (measured).
+    :return: The torque value at time t."""
+
+    torque = analytic_torque(t, omega_ds, amplitudes, phases)
+
+    # Connect to Arduino code here! Measure and return the value of theta and
+    # omega at this time. Consider changing this function to a generator to
+    # retain previous values of measured theta and omega.
+
+    return torque
 
 if __name__ == '__main__':
-    main()
+    exp_vs_an_parameters()

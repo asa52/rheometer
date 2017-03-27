@@ -2,6 +2,7 @@
 to do with the Physics."""
 
 import numpy as np
+import yaml
 
 
 def make_same_dim(*variables, ref_dim_array=np.ones(1)):
@@ -17,12 +18,6 @@ def make_same_dim(*variables, ref_dim_array=np.ones(1)):
     split_values = np.array(np.split(np.outer(variables, multiplier), n_vars,
                             axis=0)).squeeze()
     return split_values
-
-
-def _check_iterable(variable):
-    """Checks that a variable is iterable, such as tuple, list or array, 
-    but is not a string."""
-    return hasattr(variable, '__iter__') and type(variable) is not str
 
 
 def convert_to_array(variable):
@@ -86,3 +81,23 @@ def baker(fun, args=None, kwargs=None, position_to_pass_through=(0, 0)):
             position_to_pass_through[1]+1):]), **kwargs)
 
     return wrapped
+
+
+def yaml_read(yaml_file):
+    """Parses a YAML file and returns the resulting dictionary.
+    :param yaml_file: the YAML file path, ending in .yaml."""
+    with open(yaml_file, 'r') as f:
+        config_dict = yaml.load(f)
+
+    for key in config_dict:
+        config_dict[key] = convert_to_array(config_dict[key])
+    return config_dict
+
+
+def _check_iterable(variable):
+    """Checks that a variable is iterable, such as tuple, list or array, 
+    but is not a string."""
+    return hasattr(variable, '__iter__') and type(variable) is not str
+
+
+print(yaml_read('config.yaml'))
