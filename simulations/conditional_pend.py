@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from scipy.integrate import ode
+import matplotlib.pyplot as plt
 
 import simulations.helpers as h
 import simulations.theory_calc as t
@@ -27,21 +28,27 @@ def jac(t, y, i, b, k):
     return [[0, 1], [-k/i, -b/i]]
 
 
-def analytic_torque(t, omega_d, amplitude, phase):
+def analytic_torque(t, omega_ds, amplitudes, phases):
     """Return the value of the analytic driving torque at time t.
-    :param t: Time in seconds.
-    :param omega_d: Angular frequency of the sinusoid.
-    :param amplitude: Amplitude of sinusoid.
-    :param phase: Phase of sinusoid in radians."""
+    :param t: Time in seconds - a single value.
+    :param omega_ds: Angular frequency of the sinusoid.
+    :param amplitudes: Amplitude of sinusoid.
+    :param phases: Phase of sinusoid in radians."""
 
     # TODO Add noise.
-    return amplitude * np.sin(omega_d * t + phase)
+    amplitudes, omega_ds, phases = h.check_types_lengths(amplitudes, omega_ds,
+                                                         phases)
+    torque = 0
+    for i in range(len(amplitudes)):
+        torque += amplitudes[i] * np.sin(omega_ds[i] * t + phases[i])
+    return torque
 
 
 def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
                   g_0_mags, w_ds, phases, t_fin, initial_dt):
     r = ode(f, jac).set_integrator('dop853')
-    baked_g_0 = h.baker(analytic_torque, args=['', np.pi / 2, 1, 0])
+    # todo error is here!
+    baked_g_0 = h.baker(analytic_torque, args=['', w_ds, g_0_mags, phases])
     r.set_initial_value(y0, t0).set_f_params(
         i, baked_g_0, b_prime, omega_sim, k_prime, theta_sim, b,
         k).set_jac_params(i, b, k)
@@ -51,7 +58,6 @@ def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
         data_point = [r.t+initial_dt, *np.real(r.integrate(r.t+initial_dt))]
         results.append(data_point)
         # TODO recalculate the parameters and set them again!
-
     exp_results = np.array(results)
 
     # Theoretical calculation.
@@ -62,44 +68,54 @@ def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
                                 k - k_prime, i, sines_torque)
 
     # Normalise error by amplitude
-    normalised_theta_diff = (exp_results[:, 1] - theory[:, 1])/max(theory[:, 1])
-    normalised_omega_diff = (exp_results[:, 2] - theory[:, 2])/max(theory[:, 2])
-    theta_max_discrep = max(np.abs(normalised_theta_diff))
-    omega_max_discrep = max(np.abs(normalised_omega_diff))
-    return [theta_max_discrep, omega_max_discrep]
+    max_theta_diff = np.max(np.abs(exp_results[:, 1] - theory[:, 1]))
+    max_omega_diff = np.max(np.abs(exp_results[:, 2] - theory[:, 2]))
+    normalised_theta_diff = (exp_results[:, 1] - theory[:, 1])/np.max(
+        exp_results[:, 1])
+    normalised_omega_diff = (exp_results[:, 2] - theory[:, 2])/np.max(
+        exp_results[:, 2])
+    max_theta_norm = np.max(np.abs(normalised_theta_diff))
+    max_omega_norm = np.max(np.abs(normalised_omega_diff))
 
-    # Plotting - for 4 subplots on 1 figure.
-    #ax1 = plt.subplot(223)
+    ## Plotting - for 4 subplots on 1 figure.
+    #plt.figure(figsize=(7, 10))
+    #ax1 = plt.subplot(413)
     #plt.plot(exp_results[:, 0], normalised_theta_diff, 'k', label=r'$\theta$')
-    #plt.setp(ax1.get_xticklabels())
-    #plt.xlabel('t/s')
-#
-    ## share x only
-    #ax2 = plt.subplot(221, sharex=ax1)
-    #plt.plot(exp_results[:, 0], exp_results[:, 1], 'r-.', label=r'$\theta_{'
-    #                                                          r'exp}$')
-    #plt.plot(exp_results[:, 0], theory[:, 1], 'b:', label=r'$\theta_{theory}$')
+    #plt.setp(ax1.get_xticklabels(), visible=False)
+    #plt.grid()
+    #plt.ylabel(r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$',
+    #           fontsize=14, fontweight='bold')
+
+    # share x only
+    #ax2 = plt.subplot(411, sharex=ax1)
+    #plt.plot(exp_results[:, 0], exp_results[:, 1], 'r-.', label=r'Simulated')
+    #plt.plot(theory[:, 0], theory[:, 1], 'b:', label=r'Analytic')
     #plt.setp(ax2.get_xticklabels(), visible=False)
-    #plt.legend(loc='best')
+    #plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4), ncol=2)
     #plt.xlim([t0, t_fin])
-#
-    #ax3 = plt.subplot(224, sharey=ax1)
+    #plt.ylabel(r'$\theta$/rad', fontsize=14, fontweight='bold')
+    #plt.grid()
+
+    #ax3 = plt.subplot(414, sharex=ax1)
     #plt.plot(exp_results[:, 0], normalised_omega_diff, 'k', label=r'$\omega$')
     #plt.setp(ax1.get_xticklabels())
-    #plt.setp(ax3.get_yticklabels(), visible=False)
     #plt.xlabel('t/s', fontsize=14, fontweight='bold')
-#
-    #ax4 = plt.subplot(222, sharex=ax3)
-    #plt.plot(exp_results[:, 0], exp_results[:, 2], 'm-.', label=r'$\omega_{'
-    #                                                            r'exp}$')
-    #plt.plot(exp_results[:, 0], theory[:, 2], 'g:', label=r'$\omega_{theory}$')
+    #plt.ylabel(r'$(\omega_{sim}-\omega_{an})/|\omega_{max}|$',
+    #           fontsize=14, fontweight='bold')
+    #plt.grid()
+
+    #ax4 = plt.subplot(412, sharex=ax1)
+    #plt.plot(exp_results[:, 0], exp_results[:, 2], 'r-.',
+    #         label=r'$\omega_{exp}$')
+    #plt.plot(exp_results[:, 0], theory[:, 2], 'b:', label=r'$\omega_{theory}$')
     #plt.setp(ax4.get_xticklabels(), visible=False)
-    #plt.legend(loc='best')
     #plt.xlim([t0, t_fin])
-#
     #plt.ylabel('$\omega$/rad/s', fontsize=14, fontweight='bold')
     #plt.ticklabel_format(useOffset=False)
+    #plt.grid()
     #plt.show()
+
+    return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
 
 
 def main():
@@ -115,14 +131,14 @@ def main():
     initial_dt = 0.001
 
     # Variable parameters
-    theta_0s = np.linspace(0, np.pi/2, 5)
-    omega_0s = np.linspace(0, 1., 5)
-    i_s = [.00000001, 0.0000001, 0.000001]
-    bs = [.000000001, .000000005, .00000001, .00000005, .0000001]
-    ks = [.0000005, .000001, .000005]
-    g_0_mags = [.0000001, .0000005, .000001]
-    w_ds = np.array([np.pi / 2])
-    phases = [0]
+    theta_0s = np.linspace(0, np.pi/4, 3)
+    omega_0s = np.linspace(0, np.pi/4, 3)
+    i_s = np.array([.00000001, .0000001, .000001])
+    bs = np.array([.000000001, .000000005, .00000001, .00000005, .0000001])
+    ks = np.array([.0000005, .000001, .000005])
+    g_0_mags = np.array([.0000001, .0000005, .000001])
+    w_ds = np.array([25])
+    phases = np.array([0])
 
     max_norm_errs = []
     for g_0_mag in g_0_mags:
@@ -144,7 +160,7 @@ def main():
                                          k_prime, theta_sim, b_prime,
                                          omega_sim, *err])
     max_norm_errs = np.array(max_norm_errs)
-    np.savetxt('testing-sim-wo-norm-res', max_norm_errs)
+    np.savetxt('testing-sim-wo-norm-res.txt', max_norm_errs)
     runtime = time.time() - start_time
     print("runtime", runtime)
 

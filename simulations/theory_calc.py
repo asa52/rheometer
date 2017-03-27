@@ -2,7 +2,6 @@
 
 import numpy as np
 import simulations.helpers as h
-import matplotlib.pyplot as plt
 
 
 def calculate_cf(time, b, k, i):
@@ -13,7 +12,6 @@ def calculate_cf(time, b, k, i):
     :param k: Elastic coefficient.
     :param i: Moment of inertia.
     :return: Coefficients matrix: [[theta_A, theta_B], [omega_A, omega_B]]."""
-
     time = h.convert_to_array(time)
     w2, gamma = find_w2_gamma(b, k, i)
     if w2 > 0:
@@ -44,7 +42,8 @@ def find_w2_gamma(b, k, i):
 
 
 def calculate_sine_pi(t, b, k, i, g_0_mags, w_ds, phis):
-    """Calculate the particular integral contributions to theta and omega.
+    """Calculate the particular integral contributions to theta and omega for a 
+    sinusoidal forcing torque.
     :param t: Array or single value of time values.
     :param b: Damping coefficient
     :param k: Elastic coefficient.
@@ -67,6 +66,7 @@ def calculate_sine_pi(t, b, k, i, g_0_mags, w_ds, phis):
     time_bit = np.outer(w_ds, t).squeeze()
     a_0, b_0, phis, w_ds = h.make_same_dim(a_0, b_0, phis, w_ds,
                                            ref_dim_array=time_bit)
+
     theta_pi = a_0 * np.sin(time_bit + phis) + b_0 * np.cos(time_bit + phis)
     omega_pi = a_0 * w_ds * np.cos(time_bit + phis) - b_0 * w_ds * np.sin(
         time_bit + phis)
@@ -95,7 +95,7 @@ def solve_for_ics(t_i, theta_i, omega_i, b, k, i, baked_torque):
     function."""
     pis = (baked_torque(t_i, b, k, i)).squeeze()
     matrix = calculate_cf(t_i, b, k, i).squeeze()
-    rhs_vector = (np.array([[theta_i], [omega_i]]).squeeze() - pis)
+    rhs_vector = np.array([[theta_i], [omega_i]]).squeeze() - pis
     return np.linalg.solve(matrix, rhs_vector)
 
 
@@ -113,6 +113,9 @@ def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
     :return: Array of [t, theta, omega], each column being a different 
     variable."""
     cf_constants = solve_for_ics(t_i, y_i[0], y_i[1], b, k, i, baked_torque)
-    results = np.einsum('ijk,j', calculate_cf(t, b, k, i), cf_constants)
+    cf_matrix = calculate_cf(t, b, k, i)
+
+    results = np.einsum('ijk,j', cf_matrix, cf_constants)
     results += baked_torque(t, b, k, i)
-    return np.array([t, results[0], results[1]]).T
+
+    return np.array([t, results[0, :], results[1, :]]).T
