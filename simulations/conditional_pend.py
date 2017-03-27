@@ -1,3 +1,5 @@
+"""Code for the simulation of the pendulum under NR."""
+
 import time
 import numpy as np
 from scipy.integrate import ode
@@ -45,9 +47,11 @@ def analytic_torque(t, omega_ds, amplitudes, phases):
 
 
 def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
-                  g_0_mags, w_ds, phases, t_fin, initial_dt):
+                  g_0_mags, w_ds, phases, t_fin, initial_dt, create_plot=False):
+    """Compare experiment to theory for one set of parameters and return the 
+    difference between the two."""
+
     r = ode(f, jac).set_integrator('dop853')
-    # todo error is here!
     baked_g_0 = h.baker(analytic_torque, args=['', w_ds, g_0_mags, phases])
     r.set_initial_value(y0, t0).set_f_params(
         i, baked_g_0, b_prime, omega_sim, k_prime, theta_sim, b,
@@ -77,43 +81,48 @@ def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
     max_theta_norm = np.max(np.abs(normalised_theta_diff))
     max_omega_norm = np.max(np.abs(normalised_omega_diff))
 
-    ## Plotting - for 4 subplots on 1 figure.
-    #plt.figure(figsize=(7, 10))
-    #ax1 = plt.subplot(413)
-    #plt.plot(exp_results[:, 0], normalised_theta_diff, 'k', label=r'$\theta$')
-    #plt.setp(ax1.get_xticklabels(), visible=False)
-    #plt.grid()
-    #plt.ylabel(r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$',
-    #           fontsize=14, fontweight='bold')
+    # Plotting - for 4 subplots on 1 figure.
+    if create_plot:
+        plt.figure(figsize=(7, 10))
+        ax1 = plt.subplot(413)
+        plt.plot(exp_results[:, 0], normalised_theta_diff, 'k',
+                 label=r'$\theta$')
+        plt.setp(ax1.get_xticklabels(), visible=False)
+        plt.grid()
+        plt.ylabel(r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$', fontsize=14,
+                   fontweight='bold')
 
-    # share x only
-    #ax2 = plt.subplot(411, sharex=ax1)
-    #plt.plot(exp_results[:, 0], exp_results[:, 1], 'r-.', label=r'Simulated')
-    #plt.plot(theory[:, 0], theory[:, 1], 'b:', label=r'Analytic')
-    #plt.setp(ax2.get_xticklabels(), visible=False)
-    #plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4), ncol=2)
-    #plt.xlim([t0, t_fin])
-    #plt.ylabel(r'$\theta$/rad', fontsize=14, fontweight='bold')
-    #plt.grid()
+        # share x only
+        ax2 = plt.subplot(411, sharex=ax1)
+        plt.plot(exp_results[:, 0], exp_results[:, 1], 'r-.',
+                 label=r'Simulated')
+        plt.plot(theory[:, 0], theory[:, 1], 'b:', label=r'Analytic')
+        plt.setp(ax2.get_xticklabels(), visible=False)
+        plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4), ncol=2)
+        plt.xlim([t0, t_fin])
+        plt.ylabel(r'$\theta$/rad', fontsize=14, fontweight='bold')
+        plt.grid()
 
-    #ax3 = plt.subplot(414, sharex=ax1)
-    #plt.plot(exp_results[:, 0], normalised_omega_diff, 'k', label=r'$\omega$')
-    #plt.setp(ax1.get_xticklabels())
-    #plt.xlabel('t/s', fontsize=14, fontweight='bold')
-    #plt.ylabel(r'$(\omega_{sim}-\omega_{an})/|\omega_{max}|$',
-    #           fontsize=14, fontweight='bold')
-    #plt.grid()
+        ax3 = plt.subplot(414, sharex=ax1)
+        plt.plot(exp_results[:, 0], normalised_omega_diff, 'k',
+                 label=r'$\omega$')
+        plt.setp(ax1.get_xticklabels())
+        plt.xlabel('t/s', fontsize=14, fontweight='bold')
+        plt.ylabel(r'$(\omega_{sim}-\omega_{an})/|\omega_{max}|$',
+                   fontsize=14, fontweight='bold')
+        plt.grid()
 
-    #ax4 = plt.subplot(412, sharex=ax1)
-    #plt.plot(exp_results[:, 0], exp_results[:, 2], 'r-.',
-    #         label=r'$\omega_{exp}$')
-    #plt.plot(exp_results[:, 0], theory[:, 2], 'b:', label=r'$\omega_{theory}$')
-    #plt.setp(ax4.get_xticklabels(), visible=False)
-    #plt.xlim([t0, t_fin])
-    #plt.ylabel('$\omega$/rad/s', fontsize=14, fontweight='bold')
-    #plt.ticklabel_format(useOffset=False)
-    #plt.grid()
-    #plt.show()
+        ax4 = plt.subplot(412, sharex=ax1)
+        plt.plot(exp_results[:, 0], exp_results[:, 2], 'r-.',
+                 label=r'$\omega_{exp}$')
+        plt.plot(exp_results[:, 0], theory[:, 2], 'b:',
+                 label=r'$\omega_{theory}$')
+        plt.setp(ax4.get_xticklabels(), visible=False)
+        plt.xlim([t0, t_fin])
+        plt.ylabel('$\omega$/rad/s', fontsize=14, fontweight='bold')
+        plt.ticklabel_format(useOffset=False)
+        plt.grid()
+        plt.show()
 
     return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
 
