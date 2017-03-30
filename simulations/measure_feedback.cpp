@@ -1,10 +1,8 @@
-#include <ctime>
+#include <time.h>
 #include <stdint.h>
 
 #define range 480
 #define sample_num 120
-
-using namespace std;
 
 static int A0mu[2076] = {
     // Hardcoded calibration curve - nonlinear mapping from sensor voltage to
