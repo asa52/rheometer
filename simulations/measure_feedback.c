@@ -228,7 +228,7 @@ int amp = 64, old_peak_to_trough, old_amp_step = 1, amp_step = 4, old_amp = 64,
 int f = 0, p = 0, delta_num = 0, li = 0, corr, t_diff = 0, f_count = 0;
 int t = 0, last_t = 0, t_peak, t_trough, dt, t_dpeakdt, t_dtroughdt, dpeakdt,
     dtroughdt;
-int dmudt, darraydt[range], DC_func = 2047, NR = 1, korb = 0, simu_k = 100000,
+int dmudt, darraydt[range], DC_func = 2047, NR = 1, korb = 0, simu_k = 1000,
     simu_b = 1000, Torv = 0;
 int centre_mode = 0, equilibrium_A0 = -1, used_zero_A0, simu_k_unit = 128,
     simu_b_unit = 128;
@@ -249,7 +249,8 @@ void settle_amp();
 int min(int a, int b);
 int max(int a, int b);
 
-int main() {
+int main(int theta) {
+  // theta is the angular displacement of the pendulum, not necessarily converted to pos values.
   // SerialUSB.begin(115200);
   // analogWriteResolution(12);  // set the analog output resolution to 12 bit
   // (4096 levels)
@@ -263,51 +264,48 @@ int main() {
   // REG_TC0_RA0 = 30000000; // PWM value
   // REG_TC0_CCR0 = 0b101;  // start counter
 
-  while (1) {
-    // pos = analogRead(measure); //reads the voltage at analog pin A0 -
-    // todo simulate by replacing function with something that gets the theta
-    // value from the Python program (perhaps with some delay) and mapping to
-    // a value between 0 and 2095?
+  pos = theta; 
+  // todo simulate by replacing function with something that gets the theta
+  // value from the Python program (perhaps with some delay) and mapping to
+  // a value between 0 and 2095? 
+  
+  if ((pos >= 1558 && pos <= 3633)) {
+    // TODO Why this limit on the pos value?
+    int num = (pos - pos_0);  // Convert to index from which the voltage from
+                              // A0 can be converted into TODO 'distance
+                              // values'
+    mu = A0mu[num];           // 0.1 microns
+  }
 
-    if ((pos >= 1558 && pos <= 3633)) {
-      // TODO Why this limit on the pos value?
-      int num = (pos - pos_0);  // Convert to index from which the voltage from
-                                // A0 can be converted into TODO 'distance
-                                // values'
-      mu = A0mu[num];           // 0.1 microns
-    }
+  if (centre_mode == 1) {
+    used_zero_A0 = equilibrium_A0;  // set zero point to some value you set
+  } else {
+    used_zero_A0 = centre;
+  }
 
-    if (centre_mode == 1) {
-      used_zero_A0 = equilibrium_A0;  // set zero point to some value you set
-    } else {
-      used_zero_A0 = centre;
-    }
+  if (NR == 1 && (run_option == 0 || run_option == 1)) {
+    func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048) +
+            (((mu - used_zero_A0) * simu_k) / (simu_k_unit)) +
+            ((dmudt * simu_b) / (simu_b_unit))) +
+           2047;  // midpoint
+  }  
+  if (func > 4095) {
+    // if function too large, clip
+    func = 4095;
+  }
+  if (func < 0) {
+    // if too small, clip
+    func = 0;
+  }  
+  // handle_const_strain_feedback();  
+  t++;  // counts number of completed computing cycles
+  if (t == sample_num) {
+    t = 0;  // Reset the counter to repeat the wave
+  }
+  // feed a value to the python program HERE
+  // change to return the torque.
 
-    if (NR == 1 && (run_option == 0 || run_option == 1)) {
-      func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048) +
-              (((mu - used_zero_A0) * simu_k) / (simu_k_unit)) +
-              ((dmudt * simu_b) / (simu_b_unit))) +
-             2047;  // midpoint
-    }
-
-    if (func > 4095) {
-      // if function too large, clip
-      func = 4095;
-    }
-    if (func < 0) {
-      // if too small, clip
-      func = 0;
-    }
-
-    // handle_const_strain_feedback();
-
-    t++;  // counts number of completed computing cycles
-    if (t == sample_num) {
-      t = 0;  // Reset the counter to repeat the wave
-    }
-    // feed a value to the python program HERE
-  }  // change to return the torque.
-  return 0;
+  return func;
 }
 
 void handle_const_strain_feedback() {
@@ -414,7 +412,7 @@ void handle_const_strain_feedback() {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE
             // BACK
           }
-          // centre_estimated = 0;
+          centre_estimated = 0;
           break;
         case 125:
           // send_3_byte_value(amp, 0b00000000);CHANGE BACK
