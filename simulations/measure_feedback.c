@@ -228,13 +228,12 @@ int amp = 64, old_peak_to_trough, old_amp_step = 1, amp_step = 4, old_amp = 64,
 int f = 0, p = 0, delta_num = 0, li = 0, corr, t_diff = 0, f_count = 0;
 int t = 0, last_t = 0, t_peak, t_trough, dt, t_dpeakdt, t_dtroughdt, dpeakdt,
     dtroughdt;
-int dmudt, darraydt[range], DC_func = 2047, NR = 1, korb = 0, simu_k = 1000,
-    simu_b = 1000, Torv = 0;
-int centre_mode = 0, equilibrium_A0 = -1, used_zero_A0, simu_k_unit = 128,
-    simu_b_unit = 128;
+int dmudt, darraydt[range], DC_func = 2047, NR = 1, korb = 0, k_prime = 10,
+    b_prime = 10, Torv = 0;
+int centre_mode = 0, equilibrium_A0 = -1, used_zero_A0;
 int peak_to_peak, upper_amplitude, lower_amplitude, centre_estimated = 0;
 int freq_check = 0, pos_rec, A0_period_estimate_mean = 0, A0_period_count = 0;
-unsigned long int t_i = 0, t_f = 0, val = 31818;  // 35000;//175000*4;
+unsigned long int t_i = 0, t_f = 0, val = 35000;  // 35000;//175000*4;
 int array[range], peaksnt[8][4], troughsnt[8][4], rec_times[32],
     A0_period_estimates[16];
 int phase_estimates[16], pest_num = -1, feed_num = -1, sym_check, pest_check,
@@ -248,10 +247,17 @@ void map_centre_back_to_pos(int last_pos, int try_num, int twos);
 void settle_amp();
 int min(int a, int b);
 int max(int a, int b);
+void set_k_b(int k_simu, int b_simu);
+void set_amp(int digitised_amplitude);
+int get_k();
+int get_b();
+int get_amp();
+int get_mu();
+int get_dmudt();
 
 int main(int theta) {
-  // theta is the angular displacement of the pendulum, not necessarily converted to pos values.
-  // SerialUSB.begin(115200);
+  // theta is the angular displacement of the pendulum, not necessarily
+  // converted to pos values.
   // analogWriteResolution(12);  // set the analog output resolution to 12 bit
   // (4096 levels)
   // analogReadResolution(12);   // set the analog input resolution to 12 bit
@@ -284,11 +290,12 @@ int main(int theta) {
   }
 
   if (NR == 1 && (run_option == 0 || run_option == 1)) {
-    func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048) +
-            (((mu - used_zero_A0) * simu_k) / (simu_k_unit)) +
-            ((dmudt * simu_b) / (simu_b_unit))) +
-           2047;  // midpoint
+    func = (((waveformsTable[t] - waveformsTable[0]) * amp) / 2048) 
+           // + (((mu - used_zero_A0) * k_prime) 
+           // + (dmudt * b_prime) 
+            + 2047;  // midpoint
   }  
+
   if (func > 4095) {
     // if function too large, clip
     func = 4095;
@@ -297,14 +304,11 @@ int main(int theta) {
     // if too small, clip
     func = 0;
   }  
-  // handle_const_strain_feedback();  
+  //handle_const_strain_feedback();  
   t++;  // counts number of completed computing cycles
   if (t == sample_num) {
     t = 0;  // Reset the counter to repeat the wave
   }
-  // feed a value to the python program HERE
-  // change to return the torque.
-
   return func;
 }
 
@@ -405,13 +409,13 @@ void handle_const_strain_feedback() {
           // 0b00001000);CHANGE BACK
           break;
         case 11:
-          if (phase_estimates[delta_num] < 0) {
+          //if (phase_estimates[delta_num] < 0) {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE
             // BACK
-          } else {
+          //} else {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE
             // BACK
-          }
+          //}
           centre_estimated = 0;
           break;
         case 125:
@@ -422,13 +426,13 @@ void handle_const_strain_feedback() {
           // 0b00001000);CHANGE BACK
           break;
         case 131:
-          if (phase_estimates[delta_num] < 0) {
+          //if (phase_estimates[delta_num] < 0) {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE
             // BACK
-          } else {
+          //} else {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE
             // BACK
-          }
+          //}
           break;
         case 245:
           // send_3_byte_value(amp, 0b00000000);CHANGE BACK
@@ -438,13 +442,13 @@ void handle_const_strain_feedback() {
           // 0b00001000);CHANGE BACK
           break;
         case 251:
-          if (phase_estimates[delta_num] < 0) {
+          //if (phase_estimates[delta_num] < 0) {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE
             // BACK
-          } else {
+          //} else {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE
             // BACK
-          }
+          //}
           break;
         case 365:
           // send_3_byte_value(amp, 0b00000000);CHANGE BACK
@@ -454,13 +458,13 @@ void handle_const_strain_feedback() {
           // 0b00001000);CHANGE BACK
           break;
         case 371:
-          if (phase_estimates[delta_num] < 0) {
+          //if (phase_estimates[delta_num] < 0) {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010001);CHANGE
             // BACK
-          } else {
+          //} else {
             // send_3_byte_value(phase_estimates[delta_num], 0b00010000);CHANGE
             // BACK
-          }
+          //}
           centre_estimated = 0;
           break;
       }
@@ -828,4 +832,33 @@ int min(int a, int b) {
   } else {
     return a;
   }
+}
+
+void set_k_b(int k_simu, int b_simu){
+    k_prime = k_simu;
+    b_prime = b_simu;
+}
+
+void set_amp(int digitised_amplitude){
+    amp = digitised_amplitude;
+}
+
+int get_k(){
+    return k_prime;
+}
+
+int get_b(){
+    return b_prime;
+}
+
+int get_amp(){
+    return amp;
+}
+
+int get_mu(){
+    return mu;
+}
+
+int get_dmudt(){
+    return dmudt;
 }

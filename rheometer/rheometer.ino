@@ -1,3 +1,5 @@
+#include <elapsedMillis.h>
+
 #include <Time.h>
 #include <TimeLib.h>
 
@@ -33,6 +35,7 @@ static int waveformsTable[sample_num] = {
   0x3ff, 0x45d, 0x4be, 0x521, 0x586, 0x5ed, 0x655, 0x6bf, 0x729, 0x794
 };
 
+elapsedMillis timeElapsed;
 byte b[3] = {0, 0, 0}, mode, val_in[4] = {0, 0, 0, 0}; // explain each variable and the different modes
 int measure = 0, run_option = 0;
 int func = 0, pos = 0, centre, peak, trough, pos_0 = 1558, mu, mu_tol = 40, set_strain = 2048;

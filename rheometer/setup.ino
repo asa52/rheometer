@@ -6,7 +6,6 @@ void setup() {
     analogReadResolution(12);   // set the analog input resolution to 12 bit (4096 levels)
     pinMode(DAC0, OUTPUT);
     // A0 not set as input pin????? what are pins 22 and 2
-    pinMode(A1, INPUT);
     pinMode(22, OUTPUT);
     pinMode(2, OUTPUT);   // port B pin 25
     analogWrite(2, 255);  // sets up some other registers I haven't worked out yet

@@ -45,16 +45,10 @@ void TC0_Handler() {
   }
   //REG_DACC_CDR = func; // analog write to DAC1
   analogWrite(DAC0, func); //change to lower level code TODO
-  int actual_func = analogRead(A1);
-  time_t get_time = now();
-  SerialUSB.println("Dataset-t-get_time-mu-usedzeroA0-dmudt-func-actualfunc");
+  SerialUSB.println("Dataset-t-timeElapsed-func");
   SerialUSB.println(t);
-  SerialUSB.println(get_time);
-  SerialUSB.println(mu);
-  SerialUSB.println(used_zero_A0);
-  SerialUSB.println(dmudt);
+  SerialUSB.println(timeElapsed);
   SerialUSB.println(func);
-  SerialUSB.println(actual_func);
   //SerialUSB.println(simu_k);
   //SerialUSB.println(simu_k_unit);
   //SerialUSB.println(simu_b);

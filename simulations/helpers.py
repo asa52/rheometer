@@ -98,6 +98,3 @@ def _check_iterable(variable):
     """Checks that a variable is iterable, such as tuple, list or array, 
     but is not a string."""
     return hasattr(variable, '__iter__') and type(variable) is not str
-
-
-print(yaml_read('config.yaml'))

@@ -2,6 +2,7 @@
 
 import numpy as np
 import simulations.helpers as h
+import matplotlib.pyplot as plt
 
 
 def calculate_cf(time, b, k, i):
@@ -117,3 +118,17 @@ def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
     results = np.einsum('ijk,j', cf_matrix, cf_constants)
     results += baked_torque(t, b, k, i)
     return np.array([t, results[0, :], results[1, :]]).T
+
+
+def theory_response(b, k, i, b_prime, k_prime, w_d):
+    # ensure the analytic forcing function is oscillatory.
+    transfer = 1/(-i * w_d ** 2 + w_d * (b - b_prime) * 1j + (k - k_prime))
+    plt.plot(w_d, np.absolute(transfer))
+    plt.show()
+    plt.plot(w_d, np.angle(transfer))
+    plt.show()
+    return transfer
+
+
+if __name__ == '__main__':
+    print(theory_response(0.1, 1, 1, 0, 0, np.linspace(0, 4, 10000)))
