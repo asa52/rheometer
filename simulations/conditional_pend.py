@@ -2,8 +2,10 @@
 
 import numpy as np
 from scipy.integrate import ode
-from scipy.signal import stft
+import pyfftw
+import scipy.signal as sg
 import matplotlib.pyplot as plt
+import time
 
 import simulations.helpers as h
 #import simulations.c_talker as talk
@@ -118,24 +120,28 @@ def plot_spectrum(x, y):
     """
     Plots a Single-Sided Amplitude Spectrum of y(x)
     """
-    n = y.shape[1]  # length of the signal
+    next(t1)
+    n = y.shape[-1]  # length of the signal
     s = 1/(x[1] - x[0])    # sampling rate
     k = np.arange(n)
     T = n / s
+    next(t1)
     frq = k / T  # two sides frequency range
+    next(t1)
     frq = frq[range(int(np.round(n/2)))]  # one side frequency range
-    Y = np.fft.fft(y, axis=1) / n  # fft computing and normalization
-    Y = 2 * Y[:, range(int(np.round(n/2)))]
-
-    for i in range(y.shape[0]):
-        plt.plot(frq, abs(Y[i, :])**2, label=str(i))
-    plt.legend()
-    plt.show()
-    return frq, abs(Y)
-    #plt.plot(frq, abs(Y), 'r')  # plotting the spectrum
-    #plt.xlabel('Freq (Hz)')
-    #plt.ylabel('|Y(freq)|')
-    #plt.show()
+    next(t1)
+    full_Y = np.zeros_like(y)
+    fft = pyfftw.builders.fft(y, overwrite_input=False,
+                              planner_effort='FFTW_ESTIMATE',
+                              threads=2, auto_align_input=False,
+                              auto_contiguous=False, avoid_copy=True)
+    full_Y = fft()
+    full_Y /= n  # interfaces.numpy_fft.fft(y) / n   # fft computing
+    # and normalization
+    next(t1)
+    Y = 2 * full_Y[range(int(np.round(n / 2)))]
+    next(t1)
+    return frq, np.absolute(Y) ** 2, full_Y
 
 
 def bandwidth(freqs, weights):
@@ -172,33 +178,165 @@ def padder(arr, stop_at=0.9):
 
 
 def calc_stft(x, y):
+    x, y = h.check_types_lengths(x, y)
     fs = 1/(x[1] - x[0])
-    return stft(y, fs, window='boxcar')
+    return sg.stft(y, fs, window='boxcar', nperseg=int(len(x) / 400))
 
 
-def get_correlation(x, y):
+def get_correlation(x, y, min_lim=0.95, tol=0.005):
     results = calc_stft(x, y)
     freqs = results[0]
+    times = results[1][1:]
     amplitudes = results[2]
+    # for amp in range(amplitudes.shape[1]):
+    #    plt.plot(freqs, np.absolute(amplitudes[:, amp]), label='{}'.format(
+    # amp))
+    # plt.legend()
+    # plt.show()
     mean_amps = np.mean(amplitudes, axis=0)
     means = np.outer(np.ones(len(freqs)), mean_amps)
     norm_amps = amplitudes - means
+    prev_col = np.roll(norm_amps, 1, axis=1)
+    norm_by = norm_amps.shape[0] * np.std(norm_amps, ddof=1, axis=0) * \
+              np.std(prev_col, ddof=1, axis=0)
     correlations = []
-    for i in range(amplitudes.shape[1]):
-        #plt.plot(freqs, np.absolute(amplitudes[:, i]))
-        #plt.plot(freqs, np.angle(amplitudes[:, i]))
+    for i in range(norm_amps.shape[1]):
         if i != 0:
-            norm_by = len(norm_amps[:, i]) * np.std(norm_amps[:, i], ddof=1) \
-                      * np.std(norm_amps[:, i - 1], ddof=1)
-            correlations.append(np.correlate(
-                norm_amps[:, i - 1], norm_amps[:, i]) / norm_by)
-    plt.plot(np.absolute(correlations))
-    plt.show()
+            try:
+                correlations.append(np.absolute(sg.correlate(
+                    prev_col[:, i], norm_amps[:, i], mode='valid') /
+                                                norm_by[i]))
+            except RuntimeWarning:
+                correlations.append(0)
 
+    correlations = np.array(correlations).squeeze()
+    # To work out the range of times that correspond to good steady state
+    # values, require that the correlation exceeds 95% and the gradient
+    # varies by no more than 0.5% either side. Find the range of times where
+    # this is obeyed.
+    # plt.plot(correlations)
+    # plt.show()
+    exceeds_min = correlations >= min_lim
+    print("exceeds", exceeds_min)
+    # within_tol checks that the differences between consecutive values are
+    # small, but there can still be a small net increase. Need to ensure that
+    # the differences are within some range around 0.
+    diffs = np.ediff1d(correlations)
+    within_tol = np.absolute(diffs) <= tol
+    within_tol = np.insert(within_tol, 0, [False])
+    valid_corr = correlations[exceeds_min * within_tol]
+    assert np.absolute(np.mean(valid_corr - np.mean(valid_corr))) < 10 ** (-4), \
+        "Steady state not reached - correlations are changing consistently."
+    ss_times = times[exceeds_min * within_tol]
+    return min(ss_times), max(ss_times)
+
+
+def find_peak(freqs, ffts, n_expected=1):
+    """Find the peak and bandwidth of a signal given the number of peaks 
+    expected."""
+    diffs = np.ediff1d(ffts)
+    signs = np.sign(diffs)
+    all_peaks_pos = np.ediff1d(signs) < 0
+    peaks = []
+    for index, pos in enumerate(all_peaks_pos):
+        if pos:
+            peak = tuple(signs[index:index + 2])
+            if peak == (1, 0):
+                try:
+                    peaks.append([])
+                    peaks[-1].append(ffts[index: index + 2])
+                except IndexError:
+                    pass
+            elif peak == (1, -1):
+                peaks.append([])
+                peaks[-1].append(ffts[index: index + 2])
+                peaks[-1].append(ffts[index + 1: index + 3])
+            elif peak == (0, -1):
+                try:
+                    peaks[-1].append(ffts[index + 1: index + 3])
+                except IndexError:
+                    pass
+
+    peak_diffs = np.array([])
+    peaks = np.array(peaks)
+    for i in range(len(peaks)):
+        rise = np.absolute(peaks[i, 0, 1] - peaks[i, 0, 0])
+        fall = np.absolute(peaks[i, 1, 1] - peaks[i, 1, 0])
+        peak_diffs = np.append(peak_diffs, np.mean([rise, fall]))
+    ind = np.argpartition(peak_diffs, -n_expected)[-n_expected:]
+    peaks = peaks[ind, :, :]
+    res_freqs = []
+    b_widths = []
+    for i in range(len(peaks)):
+        min_freq = freqs[np.where(ffts == peaks[i, 0, 0])]
+        mean_freq = freqs[np.where(ffts == peaks[i, 1, 0])]
+        res_freqs.append(mean_freq.squeeze())
+        max_freq = freqs[np.where(ffts == peaks[i, 1, 1])]
+        b_widths.append((max_freq - min_freq).squeeze())
+    res_freqs = np.array([res_freqs, b_widths])
+    return res_freqs, ffts
+
+
+def calc_amplitudes(x, y, res_freqs, full_Y):
+    """Calculate the amplitudes of the waves in y over time x given the 
+    resonant frequencies and their bandwidths of the signal in y."""
+    n_peaks = res_freqs.shape[1]
+    n = len(x)
+    k = np.arange(n)
+    dt = x[1] - x[0]
+    # errors not taken into account yet in terms of bandwidth
+    trig_coeffs = []
+    for freq in res_freqs[0, :]:
+        b = freq * dt - 2 * np.pi * k / n
+        b_prime = freq * dt + 2 * np.pi * k / n
+        sines = ((1 - np.exp(n * b * 1j)) / (1 - np.exp(b * 1j)) -
+                 (1 - np.exp(-n * b_prime * 1j)) / (
+                 1 - np.exp(-b_prime * 1j))) / 2j
+        cosines = ((1 - np.exp(n * b * 1j)) / (1 - np.exp(b * 1j)) +
+                   (1 - np.exp(-n * b_prime * 1j)) / (
+                   1 - np.exp(-b_prime * 1j))) / 2
+        trig_coeffs.append(sines)
+        trig_coeffs.append(cosines)
+    a = np.array(trig_coeffs).T
+    print(a)
+
+    # avs = np.zeros(4)
+    # i = 0
+    # while True:
+    #    try:
+    #        avs = np.add(avs, np.linalg.lstsq(a[5 * i:5 * i + 4, :],
+    #                                          full_Y[5 * i:5*i+4])[0])#[0]
+    #        i += 1
+    #    except ValueError:
+    #        break
+    # print(avs/i)
+    print(np.dot(np.linalg.pinv(a), full_Y))
+    return
+
+
+def timer():
+    start = time.time()
+    counter = 0
+    while True:
+        elapsed = time.time() - start
+        counter += 1
+        print(counter, elapsed)
+        yield elapsed
 
 if __name__ == '__main__':
-    t = np.linspace(0, 10000, 100000)
-    y = np.sin(2*t) + 10*np.exp(-t) + 2*np.cos(t) + t**10*np.exp(-2*t) + \
-        0.1*np.sin(100*np.pi*t)
-    get_correlation(t, y)
-
+    t1 = timer()
+    t = np.linspace(0, 100000, 1000001)
+    y = np.sin(5 * t) + np.cos(3 * t)
+    next(t1)
+    print("hello")
+    ss_times = get_correlation(t, y, min_lim=0.75)
+    next(t1)
+    frq, Y_sq, full_Y = plot_spectrum(t[(t >= ss_times[0]) * (t <= ss_times[
+        1])], y[(t >= ss_times[0]) * (t <= ss_times[1])])
+    next(t1)
+    res_freqs, ffts = find_peak(frq, Y_sq, n_expected=2)
+    amplitudes = calc_amplitudes(t[(t >= ss_times[0]) * (t <= ss_times[1])],
+                                 y[(t >= ss_times[0]) * (t <= ss_times[1])],
+                                 res_freqs, full_Y)
+    print(amplitudes)
+    next(t1)
