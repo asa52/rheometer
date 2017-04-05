@@ -1,11 +1,11 @@
 """Code for the simulation of the pendulum under NR."""
 
+import time
 import numpy as np
-from scipy.integrate import ode
 import pyfftw
 import scipy.signal as sg
+from scipy.integrate import ode
 import matplotlib.pyplot as plt
-import time
 
 import simulations.helpers as h
 #import simulations.c_talker as talk
@@ -144,55 +144,17 @@ def plot_spectrum(x, y):
     return frq, np.absolute(Y) ** 2, full_Y
 
 
-def bandwidth(freqs, weights):
-    """Calculate the bandwidth of a signal as the standard deviation in the 
-    frequencies, weighted by the weights."""
-    sum_sq_weights = np.sum(weights**2, axis=1)
-    widths = []
-    print(weights[3, :])
-    for i in range(weights.shape[0]):
-        widths.append([i, np.std(freqs * weights[i, :]**2 / sum_sq_weights[i],
-                                 ddof=1)])
-    widths = np.array(widths)
-    plt.plot(widths[:, 0], widths[:, 1])
-    plt.show()
-    #return width
-
-
-def padder(arr, stop_at=0.9):
-    """Returns a 2D array of values from arr, shifted and padded to look at 
-    the whole range, then subselect the later range, and so on. This helps 
-    identify the steady state in a sequence of displacement values.
-    :param arr: 1D array of y-values to FFT later.
-    :param stop_at: The fraction of the length of arr that the final set to 
-    be FFT'd is.
-    :return: 2D array of [arr, arr[0: n / 50], arr[n / 50 + 1: 2 * n / 50], 
-                          ..., arr[m * n / 50 + 1: stop_at * n]], 
-             the ends of the rows padded with zeros, where n = len(arr)."""
-    n = len(arr)
-    fft_range = np.arange(0, int(stop_at * n), int(np.ceil(n/50.)))
-    padded = np.zeros((n, len(fft_range)))
-    for index, i in np.ndenumerate(fft_range):
-        padded[:, index[0]] = np.pad(arr, (0, i), mode='constant')[i:]
-    return np.array(padded).T
-
-
-def calc_stft(x, y):
+def _calc_stft(x, y):
     x, y = h.check_types_lengths(x, y)
     fs = 1/(x[1] - x[0])
     return sg.stft(y, fs, window='boxcar', nperseg=int(len(x) / 400))
 
 
 def get_correlation(x, y, min_lim=0.95, tol=0.005):
-    results = calc_stft(x, y)
+    results = _calc_stft(x, y)
     freqs = results[0]
     times = results[1][1:]
     amplitudes = results[2]
-    # for amp in range(amplitudes.shape[1]):
-    #    plt.plot(freqs, np.absolute(amplitudes[:, amp]), label='{}'.format(
-    # amp))
-    # plt.legend()
-    # plt.show()
     mean_amps = np.mean(amplitudes, axis=0)
     means = np.outer(np.ones(len(freqs)), mean_amps)
     norm_amps = amplitudes - means
@@ -211,13 +173,10 @@ def get_correlation(x, y, min_lim=0.95, tol=0.005):
 
     correlations = np.array(correlations).squeeze()
     # To work out the range of times that correspond to good steady state
-    # values, require that the correlation exceeds 95% and the gradient
-    # varies by no more than 0.5% either side. Find the range of times where
+    # values, require that the correlation exceeds 'min_lim' and the gradient
+    # varies by no more than 'tol' either side. Find the range of times where
     # this is obeyed.
-    # plt.plot(correlations)
-    # plt.show()
     exceeds_min = correlations >= min_lim
-    print("exceeds", exceeds_min)
     # within_tol checks that the differences between consecutive values are
     # small, but there can still be a small net increase. Need to ensure that
     # the differences are within some range around 0.
@@ -231,33 +190,41 @@ def get_correlation(x, y, min_lim=0.95, tol=0.005):
     return min(ss_times), max(ss_times)
 
 
-def find_peak(freqs, ffts, n_expected=1):
+def find_peaks(freqs, ffts, n_expected=1):
     """Find the peak and bandwidth of a signal given the number of peaks 
     expected."""
     diffs = np.ediff1d(ffts)
     signs = np.sign(diffs)
     all_peaks_pos = np.ediff1d(signs) < 0
     peaks = []
+    look_for_rise = True
     for index, pos in enumerate(all_peaks_pos):
         if pos:
             peak = tuple(signs[index:index + 2])
-            if peak == (1, 0):
+            if peak == (1, 0) and look_for_rise:
                 try:
                     peaks.append([])
                     peaks[-1].append(ffts[index: index + 2])
+                    look_for_rise = False
                 except IndexError:
                     pass
             elif peak == (1, -1):
                 peaks.append([])
                 peaks[-1].append(ffts[index: index + 2])
                 peaks[-1].append(ffts[index + 1: index + 3])
-            elif peak == (0, -1):
+            elif peak == (0, -1) and not look_for_rise:
                 try:
                     peaks[-1].append(ffts[index + 1: index + 3])
+                    look_for_rise = True
                 except IndexError:
                     pass
 
     peak_diffs = np.array([])
+    print("peaks1", peaks)
+    for index, i in enumerate(peaks):
+        if len(i) != 2:
+            peaks.pop(index)
+    print("fin", peaks)
     peaks = np.array(peaks)
     for i in range(len(peaks)):
         rise = np.absolute(peaks[i, 0, 1] - peaks[i, 0, 0])
@@ -277,41 +244,150 @@ def find_peak(freqs, ffts, n_expected=1):
     return res_freqs, ffts
 
 
-def calc_amplitudes(x, y, res_freqs, full_Y):
-    """Calculate the amplitudes of the waves in y over time x given the 
-    resonant frequencies and their bandwidths of the signal in y."""
-    n_peaks = res_freqs.shape[1]
-    n = len(x)
-    k = np.arange(n)
-    dt = x[1] - x[0]
-    # errors not taken into account yet in terms of bandwidth
-    trig_coeffs = []
-    for freq in res_freqs[0, :]:
-        b = freq * dt - 2 * np.pi * k / n
-        b_prime = freq * dt + 2 * np.pi * k / n
-        sines = ((1 - np.exp(n * b * 1j)) / (1 - np.exp(b * 1j)) -
-                 (1 - np.exp(-n * b_prime * 1j)) / (
-                 1 - np.exp(-b_prime * 1j))) / 2j
-        cosines = ((1 - np.exp(n * b * 1j)) / (1 - np.exp(b * 1j)) +
-                   (1 - np.exp(-n * b_prime * 1j)) / (
-                   1 - np.exp(-b_prime * 1j))) / 2
-        trig_coeffs.append(sines)
-        trig_coeffs.append(cosines)
-    a = np.array(trig_coeffs).T
-    print(a)
+def calc_one_amplitude(y):
+    plt.hist(y, bins=int(len(y) / 10))
+    plt.show()
+    results = np.histogram(y, bins=int(len(y) / 10))
+    num = results[0]
+    amps = np.array([*results[1]])
+    medians = amps[:-1] + np.ediff1d(amps)
+    max_disps = np.array(peakdetect(num, medians)[0])
+    ind = np.argpartition(np.absolute(max_disps[:, 1]), -2)[-2:]
+    print(np.absolute(max_disps[ind, 0]))
+    # mean_amp = np.average(np.absolute(max_disps[0, :]),
+    #                      weights=1/max_disps[1,:]**2)
+    # mean_err = (1/np.sum(1/max_disps[1, :]**2))/np.sqrt(len(max_disps[1, :]))
+    # return mean_amp, mean_err
 
-    # avs = np.zeros(4)
-    # i = 0
-    # while True:
-    #    try:
-    #        avs = np.add(avs, np.linalg.lstsq(a[5 * i:5 * i + 4, :],
-    #                                          full_Y[5 * i:5*i+4])[0])#[0]
-    #        i += 1
-    #    except ValueError:
-    #        break
-    # print(avs/i)
-    print(np.dot(np.linalg.pinv(a), full_Y))
-    return
+
+def peakdetect(y_axis, x_axis=None, lookahead=200, delta=0):
+    """ SOURCE: https://gist.github.com/sixtenbe/1178136
+    Converted from/based on a MATLAB script at: 
+    http://billauer.co.il/peakdet.html
+
+    function for detecting local maxima and minima in a signal.
+    Discovers peaks by searching for values which are surrounded by lower
+    or larger values for maxima and minima respectively
+
+    keyword arguments:
+    y_axis -- A list containing the signal over which to find peaks
+
+    x_axis -- A x-axis whose values correspond to the y_axis list and is used
+        in the return to specify the position of the peaks. If omitted an
+        index of the y_axis is used.
+        (default: None)
+
+    lookahead -- distance to look ahead from a peak candidate to determine if
+        it is the actual peak
+        (default: 200) 
+        '(samples / period) / f' where '4 >= f >= 1.25' might be a good value
+
+    delta -- this specifies a minimum difference between a peak and
+        the following points, before a peak may be considered a peak. Useful
+        to hinder the function from picking up false peaks towards to end of
+        the signal. To work well delta should be set to delta >= RMSnoise * 5.
+        (default: 0)
+            When omitted delta function causes a 20% decrease in speed.
+            When used Correctly it can double the speed of the function
+
+
+    return: two lists [max_peaks, min_peaks] containing the positive and
+        negative peaks respectively. Each cell of the lists contains a tuple
+        of: (position, peak_value) 
+        to get the average peak value do: np.mean(max_peaks, 0)[1] on the
+        results to unpack one of the lists into x, y coordinates do: 
+        x, y = zip(*max_peaks)
+    """
+    max_peaks = []
+    min_peaks = []
+    dump = []  # Used to pop the first hit which almost always is false
+
+    # check input data
+    x_axis, y_axis = _datacheck_peakdetect(x_axis, y_axis)
+    # store data length for later use
+    length = len(y_axis)
+
+    # perform some checks
+    if lookahead < 1:
+        raise ValueError("Lookahead must be '1' or above in value")
+    if not (np.isscalar(delta) and delta >= 0):
+        raise ValueError("delta must be a positive number")
+
+    # maxima and minima candidates are temporarily stored in
+    # mx and mn respectively
+    mn, mx = np.Inf, -np.Inf
+
+    # Only detect peak if there is 'lookahead' amount of points after it
+    for index, (x, y) in enumerate(zip(x_axis[:-lookahead],
+                                       y_axis[:-lookahead])):
+        if y > mx:
+            mx = y
+            mxpos = x
+        if y < mn:
+            mn = y
+            mnpos = x
+
+        ####look for max####
+        if y < mx - delta and mx != np.Inf:
+            # Maxima peak candidate found
+            # look ahead in signal to ensure that this is a peak and not jitter
+            if y_axis[index:index + lookahead].max() < mx:
+                max_peaks.append([mxpos, mx])
+                dump.append(True)
+                # set algorithm to only find minima now
+                mx = np.Inf
+                mn = np.Inf
+                if index + lookahead >= length:
+                    # end is within lookahead no more peaks can be found
+                    break
+                continue
+                # else:  #slows shit down this does
+                #    mx = ahead
+                #    mxpos = x_axis[np.where(y_axis[index:index+lookahead]==mx)]
+
+        ####look for min####
+        if y > mn + delta and mn != -np.Inf:
+            # Minima peak candidate found
+            # look ahead in signal to ensure that this is a peak and not jitter
+            if y_axis[index:index + lookahead].min() > mn:
+                min_peaks.append([mnpos, mn])
+                dump.append(False)
+                # set algorithm to only find maxima now
+                mn = -np.Inf
+                mx = -np.Inf
+                if index + lookahead >= length:
+                    # end is within lookahead no more peaks can be found
+                    break
+                    # else:  #slows shit down this does
+                    #    mn = ahead
+                    #    mnpos = x_axis[np.where(y_axis[index:index+lookahead]==mn)]
+
+    # Remove the false hit on the first value of the y_axis
+    try:
+        if dump[0]:
+            max_peaks.pop(0)
+        else:
+            min_peaks.pop(0)
+        del dump
+    except IndexError:
+        # no peaks were found, should the function return empty lists?
+        pass
+
+    return [max_peaks, min_peaks]
+
+
+def _datacheck_peakdetect(x_axis, y_axis):
+    if x_axis is None:
+        x_axis = range(len(y_axis))
+
+    if len(y_axis) != len(x_axis):
+        raise ValueError(
+            "Input vectors y_axis and x_axis must have same length")
+
+    # needs to be a numpy array
+    y_axis = np.array(y_axis)
+    x_axis = np.array(x_axis)
+    return x_axis, y_axis
 
 
 def timer():
@@ -325,18 +401,20 @@ def timer():
 
 if __name__ == '__main__':
     t1 = timer()
-    t = np.linspace(0, 100000, 1000001)
-    y = np.sin(5 * t) + np.cos(3 * t)
+    t = np.linspace(0, 10000, 100000)
+    y = np.sin(5 * t) + 0.05 * np.random.rand(100000)
     next(t1)
-    print("hello")
-    ss_times = get_correlation(t, y, min_lim=0.75)
+    ss_times = get_correlation(t, y)
     next(t1)
     frq, Y_sq, full_Y = plot_spectrum(t[(t >= ss_times[0]) * (t <= ss_times[
         1])], y[(t >= ss_times[0]) * (t <= ss_times[1])])
     next(t1)
-    res_freqs, ffts = find_peak(frq, Y_sq, n_expected=2)
-    amplitudes = calc_amplitudes(t[(t >= ss_times[0]) * (t <= ss_times[1])],
-                                 y[(t >= ss_times[0]) * (t <= ss_times[1])],
-                                 res_freqs, full_Y)
-    print(amplitudes)
+    max_peaks = np.array(peakdetect(Y_sq, frq)[0])  # max peak (frq_position,
+    # height of
+    # peak)
+    ind = np.argpartition(max_peaks[:, 1], -1)[-1:]
+    # print(max_peaks[ind, :])
+    # res_freqs, ffts = find_peaks(frq, Y_sq, n_expected=1)
+    amplitudes = calc_one_amplitude(y[(t >= ss_times[0]) * (t <= ss_times[1])])
+    #print(amplitudes)
     next(t1)
