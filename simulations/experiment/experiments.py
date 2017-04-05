@@ -1,10 +1,11 @@
 import time
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 from simulations import conditional_pend as c
 from simulations import helpers as h
-from simulations import theory_calc as t
+from simulations.experiment import theory_calc as t
 
 
 def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
