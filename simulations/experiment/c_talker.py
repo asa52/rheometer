@@ -1,5 +1,5 @@
 """Imports useful functions from Arduino code to enable values to be read from 
-and written to the .so file."""
+and written to the .so file. Note the .so file can only be run in Linux."""
 
 from ctypes import cdll
 from ctypes import c_int

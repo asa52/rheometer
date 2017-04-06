@@ -1,10 +1,13 @@
-import time
+"""High-level functions to perform experiments on the system and collect a 
+set of data, which can then be stored in a file. Maybe define a general 
+experiment class here?"""
 
+import time
 import numpy as np
 from matplotlib import pyplot as plt
 
-from simulations import conditional_pend as c
-from simulations import helpers as h
+from simulations.experiment import conditional_pend as c
+from simulations.experiment import helpers as h
 from simulations.experiment import theory_calc as t
 
 

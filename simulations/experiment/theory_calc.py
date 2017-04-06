@@ -1,4 +1,5 @@
-"""Calculate the theoretical values for a given system."""
+"""Calculate the analytic solution for a given system, to be compared with 
+the experiment from the ODE integration and Arduino script."""
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -1,3 +1,5 @@
+"""Generic plotting code, as Bash on Windows cannot make displayable plots."""
+
 import numpy as np
 import matplotlib.pyplot as plt
 

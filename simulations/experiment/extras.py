@@ -3,6 +3,8 @@ not currently needed."""
 
 import numpy as np
 
+from simulations.experiment import helpers as h
+
 
 def padder(arr, stop_at=0.9):
     """Returns a 2D array of values from arr, shifted and padded to look at 
@@ -110,3 +112,114 @@ def find_peaks(freqs, ffts, n_expected=1):
         b_widths.append((max_freq - min_freq).squeeze())
     res_freqs = np.array([res_freqs, b_widths])
     return res_freqs, ffts
+
+
+def peakdetect(y_axis, x_axis=None, lookahead=200, delta=0, n_maxima=None,
+               n_minima=None, first_is_peak=False):
+    """Detects local maxima and minima in a signal, by searching for values 
+    which are surrounded by lower or larger values for maxima and minima 
+    respectively. Sourced from: https://gist.github.com/sixtenbe/1178136. 
+    Based on MATLAB script at: http://billauer.co.il/peakdet.html.
+    :param y_axis: A list containing the signal over which to find peaks.
+    :param x_axis: List whose values correspond to the y_axis list and is used 
+    in the return to specify the position of the peaks. If omitted an index of 
+    the y_axis is used.
+    :param lookahead: Distance to look ahead from a peak candidate to determine 
+    if it is the actual peak. '(samples / period) / f' where '4 >= f >= 1.25' 
+    might be a good value.
+    :param delta: Specifies a minimum difference between a peak and the 
+    following points, before a peak may be considered a peak. Useful to hinder 
+    the function from picking up false peaks towards to end of the signal. To 
+    work well, should be set to delta >= RMSnoise * 5. When omitted, delta 
+    function causes a 20% decrease in speed. When used correctly, it can 
+    double the speed of the function.
+    :param n_maxima: The number of maxima to return. The sharpest ones are 
+    returned.
+    :param n_minima: The number of minima to return.
+    :param first_is_peak: True if there is a possibility that the very first 
+    value is a peak (e.g. for testing noiseless signals; all 'real' signals 
+    won't have this normally if time resolution is fine enough).
+    :return Two lists [max_peaks, min_peaks] containing the positive and 
+    negative peaks respectively. Each cell of the lists contains a tuple of: 
+    (position, peak_value). To get the average peak value do: np.mean(
+    max_peaks, 0)[1] on the results. To unpack one of the lists into x, 
+    y coordinates do: x, y = zip(*max_peaks)."""
+
+    max_peaks = []
+    min_peaks = []
+    dump = []  # Used to pop the first hit which almost always is false
+
+    # store data length for later use
+    length = int(len(y_axis))
+    # check input data
+    if x_axis is None:
+        x_axis = range(length)
+    x_axis, y_axis = h.check_types_lengths(x_axis, y_axis)
+
+    if lookahead < 1:
+        raise ValueError("Lookahead must be '1' or above in value")
+    if not (np.isscalar(delta) and delta >= 0):
+        raise ValueError("delta must be a positive number")
+
+    # Maxima and minima candidates are temporarily stored in mx and mn
+    # respectively.
+    mn, mx = np.Inf, -np.Inf
+
+    # Only detect peak if there is 'lookahead' amount of points after it
+    for index, (x, y) in enumerate(zip(x_axis, y_axis)):
+        if y > mx:
+            mx = y
+            mxpos = x
+        if y < mn:
+            mn = y
+            mnpos = x
+
+        # Look for maxima.
+        if y < mx - delta and mx != np.Inf:
+            # Maxima peak candidate found
+            # look ahead in signal to ensure that this is a peak and not jitter
+            if y_axis[index:index + lookahead].max() < mx:
+                max_peaks.append([mxpos, mx])
+                # dump.append(True)
+                # set algorithm to only find minima now
+                mx = np.Inf
+                mn = np.Inf
+                # if index + lookahead >= length:
+                #    # end is within lookahead no more peaks can be found
+                #    break
+                continue
+
+        ####look for min####
+        if y > mn + delta and mn != -np.Inf:
+            # Minima peak candidate found
+            # look ahead in signal to ensure that this is a peak and not jitter
+            if y_axis[index:index + lookahead].min() > mn:
+                min_peaks.append([mnpos, mn])
+                # dump.append(False)
+                # set algorithm to only find maxima now
+                mn = -np.Inf
+                mx = -np.Inf
+                # if index + lookahead >= length:
+                #    # end is within lookahead no more peaks can be found
+                #    break
+
+    # Remove the false hit on the first value of the y_axis
+    # try:
+    #    if not first_is_peak:
+    #        if dump[0]:
+    #            max_peaks.pop(0)
+    #        else:
+    #            min_peaks.pop(0)
+    #        del dump
+    # except IndexError:
+    #    pass    # No maxima/minima found.
+
+    max_peaks = np.array(max_peaks)
+    min_peaks = np.array(min_peaks)
+    if n_maxima is not None:
+        ind = np.argpartition(max_peaks[:, 1], -n_maxima)[-n_maxima:]
+        max_peaks = max_peaks[ind, :]
+    if n_minima is not None:
+        ind = np.argpartition(min_peaks[:, 1], -n_minima)[-n_minima:]
+        min_peaks = min_peaks[ind, :]
+    return [max_peaks, min_peaks]

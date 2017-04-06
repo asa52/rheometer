@@ -98,3 +98,37 @@ def _check_iterable(variable):
     """Checks that a variable is iterable, such as tuple, list or array, 
     but is not a string."""
     return hasattr(variable, '__iter__') and type(variable) is not str
+
+
+def combine_quantities(quants, errs=None, operation='mean', axis=None):
+    """Calculate a quantity and its error given the quantities quants with 
+    error errs (1D arrays). Operation can be: 'add' for addition, 'subtract' 
+    for subtraction, 'mean' for weighted mean. Can also specify axis for 
+    'add' or 'mean'."""
+    if errs is None and (operation == 'add' or operation == 'subtract'):
+        errs = np.zeros(quants.shape)
+    if axis is None:
+        axis = -1
+
+    if operation == 'add':
+        quantity = np.sum(quants, axis=axis)
+        err = np.sqrt(np.sum(errs ** 2, axis=axis))
+    elif operation == 'subtract':
+        # Final minus initial quantity. There can only be two values in this
+        # case.
+        assert len(quants) == len(errs) == 2, \
+            "Quantities and errors can only by 1D arrays of length 2 for the " \
+            "'subtract' operation."
+        quantity = np.ediff1d(quants)[0]
+        err = np.sqrt(np.sum(errs ** 2))
+    elif operation == 'mean':
+        if errs is None:
+            errs = np.ones(quants.shape)
+            err = np.std(quants, ddof=1) / np.sqrt(quants.shape[axis])
+        else:
+            err = np.sqrt(1 / np.sum(1 / errs ** 2, axis=axis)) / np.sqrt(
+                errs.shape[axis])
+        quantity = np.average(quants, weights=1 / errs ** 2, axis=axis)
+    else:
+        raise ValueError('Invalid operation.')
+    return np.array([quantity, err]).squeeze()
