@@ -23,47 +23,6 @@ def calc_fft(x_axis, y_axis):
     return freqs, full_fft_y
 
 
-def _calc_stft(x_axis, y_axis, n_per_segment):
-    """Calculate the windowed FFT of y across its range, with 1/2 overlap 
-    between one window and the next one, using a top hat window, 
-    with n_per_segment points per window."""
-    x_axis, y_axis = h.check_types_lengths(x_axis, y_axis)
-    fs = 1 / (x_axis[1] - x_axis[0])
-    return sg.stft(y_axis, fs, window='boxcar', nperseg=n_per_segment)
-
-
-def _norm_correlations(x_axis, y_axis, n_per_segment):
-    """Get normalised correlations of consecutive y segments with 
-    n_per_segment points per segment."""
-    results = _calc_stft(x_axis, y_axis, n_per_segment)
-    freqs = results[0]
-    xs = results[1][1:]
-    amplitudes = results[2]
-
-    # Calculate normalised amplitudes by subtracting mean. Necessary for
-    # normalised correlation calculation.
-    mean_amps = np.mean(amplitudes, axis=0)
-    means = np.outer(np.ones(len(freqs)), mean_amps)
-    norm_amps = amplitudes - means
-
-    prev_col = np.roll(norm_amps, 1, axis=1)
-    norm_by = norm_amps.shape[0] * np.std(norm_amps, ddof=1, axis=0) * \
-              np.std(prev_col, ddof=1, axis=0)
-
-    # Calculate consecutive normalised correlations.
-    correlations = []
-    for i in range(norm_amps.shape[1]):
-        if i != 0:
-            try:
-                correlations.append(np.absolute(sg.correlate(
-                    prev_col[:, i], norm_amps[:, i], mode='valid') /
-                                                norm_by[i]))
-            except RuntimeWarning:
-                # When trying to divide by zero.
-                correlations.append(0)
-    return xs, np.array(correlations).squeeze()
-
-
 def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.95, tol=0.005,
                 max_increase=0.0001):
     """Calculate the x range over which the FFT of y is in the steady state, 
@@ -136,6 +95,36 @@ def get_peak_pos(max_peaks, x_axis, y_axis):
     return np.array([positions, half_widths])
 
 
+def peak_detect(y_values, n_maxima):
+    """Find the indices of the peaks in y-values and their heights, and return 
+    the sharpest n_maxima peaks. Does a calculation based on the np.gradient 
+    function, which uses using second order accurate central differences in the 
+    interior and either first differences or second order accurate one-sides 
+    (forward or backwards) differences at the boundaries."""
+    peaks = []
+    first_diff = np.gradient(y_values)
+    second_diff = np.gradient(first_diff)
+    # Maxima will have negative curvature. Obtain the peak position by
+    # finding within each consecutive set where the first derivative is
+    # closest to zero.
+    maxima_ranges = np.where(second_diff < 0)[0]
+    consecs = np.split(maxima_ranges, np.where(np.diff(maxima_ranges) != 1)[0]
+                       + 1)
+    for indices in consecs:
+        # Want to find the stationary point of the curve - where first_diff
+        # is closest to zero for that peak. Indices is an array of indices.
+        diff_set = first_diff[indices]
+        pos = (np.abs(diff_set)).argmin()
+        index = indices[pos]
+        peaks.append([index, y_values[index]])
+
+    peaks = np.array(peaks)
+    if n_maxima is not None:
+        ind = np.argpartition(peaks[:, 1], -n_maxima)[-n_maxima:]
+        peaks = peaks[ind, :]
+    return peaks
+
+
 def calc_one_amplitude(real_disps, bins=None):
     """Calculate the mean amplitude of time-domain signal y."""
     if bins is None:
@@ -180,36 +169,6 @@ def calc_freqs(full_fft_y, freqs, n_peaks=1):
                                 average_over[:, 1, :], operation='mean', axis=0)
 
 
-def peak_detect(y_values, n_maxima):
-    """Find the indices of the peaks in y-values and their heights, and return 
-    the sharpest n_maxima peaks. Does a calculation based on the np.gradient 
-    function, which uses using second order accurate central differences in the 
-    interior and either first differences or second order accurate one-sides 
-    (forward or backwards) differences at the boundaries."""
-    peaks = []
-    first_diff = np.gradient(y_values)
-    second_diff = np.gradient(first_diff)
-    # Maxima will have negative curvature. Obtain the peak position by
-    # finding within each consecutive set where the first derivative is
-    # closest to zero.
-    maxima_ranges = np.where(second_diff < 0)[0]
-    consecs = np.split(maxima_ranges, np.where(np.diff(maxima_ranges) != 1)[0]
-                       + 1)
-    for indices in consecs:
-        # Want to find the stationary point of the curve - where first_diff
-        # is closest to zero for that peak. Indices is an array of indices.
-        diff_set = first_diff[indices]
-        pos = (np.abs(diff_set)).argmin()
-        index = indices[pos]
-        peaks.append([index, y_values[index]])
-
-    peaks = np.array(peaks)
-    if n_maxima is not None:
-        ind = np.argpartition(peaks[:, 1], -n_maxima)[-n_maxima:]
-        peaks = peaks[ind, :]
-    return peaks
-
-
 def calc_phase(real_resp, real_force):
     """Calculate the phase difference in radians between the displacement and 
     the torque using a Hilbert transform. Signal MUST by monochromatic, 
@@ -223,6 +182,48 @@ def calc_phase(real_resp, real_force):
 
     phases = np.angle(hil_y / hil_torque)  # also calculate average and error.
     return h.combine_quantities(phases, operation='mean')
+
+
+def _calc_stft(x_axis, y_axis, n_per_segment):
+    """Calculate the windowed FFT of y across its range, with 1/2 overlap 
+    between one window and the next one, using a top hat window, 
+    with n_per_segment points per window."""
+    x_axis, y_axis = h.check_types_lengths(x_axis, y_axis)
+    fs = 1 / (x_axis[1] - x_axis[0])
+    return sg.stft(y_axis, fs, window='boxcar', nperseg=n_per_segment)
+
+
+def _norm_correlations(x_axis, y_axis, n_per_segment):
+    """Get normalised correlations of consecutive y segments with 
+    n_per_segment points per segment."""
+    results = _calc_stft(x_axis, y_axis, n_per_segment)
+    freqs = results[0]
+    xs = results[1][1:]
+    amplitudes = results[2]
+
+    # Calculate normalised amplitudes by subtracting mean. Necessary for
+    # normalised correlation calculation.
+    mean_amps = np.mean(amplitudes, axis=0)
+    means = np.outer(np.ones(len(freqs)), mean_amps)
+    norm_amps = amplitudes - means
+
+    prev_col = np.roll(norm_amps, 1, axis=1)
+    norm_by = norm_amps.shape[0] * np.std(norm_amps, ddof=1, axis=0) * \
+              np.std(prev_col, ddof=1, axis=0)
+
+    # Calculate consecutive normalised correlations.
+    correlations = []
+    for i in range(norm_amps.shape[1]):
+        if i != 0:
+            try:
+                correlations.append(np.absolute(sg.correlate(
+                    prev_col[:, i], norm_amps[:, i], mode='valid') /
+                                                norm_by[i]))
+            except RuntimeWarning:
+                # When trying to divide by zero.
+                correlations.append(0)
+    return xs, np.array(correlations).squeeze()
+
 
 if __name__ == '__main__':
     t = np.linspace(0, 1000, 100000)
