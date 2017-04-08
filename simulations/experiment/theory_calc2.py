@@ -1,12 +1,11 @@
-"""Calculate the analytic solution for a given system, to be compared with 
-the experiment from the ODE integration and Arduino script."""
+"""Alternative theory_calc scripts for a single sinusoidal torque."""
 
 import numpy as np
 
 import simulations.experiment.helpers as h
 
 
-def calculate_cf(time, b, k, i):
+def calculate_cf_matrix(time, b, k, i):
     """Calculate the coefficients of A, B for the complementary function 
     solution of the oscillator ODE.
     :param time: Time array or single value in seconds.
@@ -42,44 +41,29 @@ def calculate_cf(time, b, k, i):
     return np.array([theta_coeffs, omega_coeffs])
 
 
-def calculate_sine_pi(t, b, k, i, g_0_mags, w_ds, phis):
+def calculate_sine_pi(t, b, k, i, g_0_mag, w_d, phi):
     """Calculate the particular integral contributions to theta and omega for a 
     sinusoidal forcing torque.
     :param t: Array or single value of time values.
     :param b: Damping coefficient
     :param k: Elastic coefficient.
     :param i: Moment of inertia.
-    :param g_0_mags: Amplitude of driving torques as an array.
-    :param w_ds: Angular frequencies array, in same order as g_0_mags.
-    :param phis: Phases array.
+    :param g_0_mag: Amplitude of driving torque.
+    :param w_d: Angular frequency.
+    :param phi: Phase in radians.
     :return: Theta and omega arrays at the times in t for the PI solution 
     part."""
     # Check all parameters are of correct format.
-    g_0_mags, w_ds, phis = h.check_types_lengths(g_0_mags, w_ds, phis)
+    g_0_mag, w_d, phi = h.check_types_lengths(g_0_mag, w_d, phi)
 
     # Calculate the forcing torque's amplitude.
-    a_0 = g_0_mags * (k - i * w_ds ** 2) / (
-        b ** 2 * w_ds ** 2 + (k - i * w_ds ** 2) ** 2)
-    b_0 = -g_0_mags * b * w_ds / (b ** 2 * w_ds ** 2 + (k - i * w_ds ** 2) ** 2)
+    a_0 = g_0_mag * (k - i * w_d ** 2) / (
+        b ** 2 * w_d ** 2 + (k - i * w_d ** 2) ** 2)
+    b_0 = -g_0_mag * b * w_d / (b ** 2 * w_d ** 2 + (k - i * w_d ** 2) ** 2)
 
-    # Use these calculated values to work out theta and omega for the
-    # required times.
-    time_bit = np.outer(w_ds, t).squeeze()
-    a_0, b_0, phis, w_ds = h.make_same_dim(a_0, b_0, phis, w_ds,
-                                           ref_dim_array=time_bit)
-
-    theta_pi = a_0 * np.sin(time_bit + phis) + b_0 * np.cos(time_bit + phis)
-    omega_pi = a_0 * w_ds * np.cos(time_bit + phis) - b_0 * w_ds * np.sin(
-        time_bit + phis)
-    if theta_pi.squeeze().ndim == 0 and omega_pi.squeeze().ndim == 0:
-        theta_pi = np.sum(theta_pi.squeeze())
-        omega_pi = np.sum(omega_pi.squeeze())
-    elif theta_pi.squeeze().ndim == 2 and theta_pi.squeeze().ndim == 2:
-        theta_pi = np.sum(theta_pi.squeeze(), axis=0)
-        omega_pi = np.sum(omega_pi.squeeze(), axis=0)
-    elif not (theta_pi.squeeze().ndim == 1 and omega_pi.squeeze().ndim == 1):
-        raise Exception("Something has gone wrong with array dimensions!")
-    print("vala", theta_pi, omega_pi)
+    theta_pi = a_0 * np.sin(w_d * t + phi) + b_0 * np.cos(w_d * t + phi)
+    omega_pi = a_0 * w_d * np.cos(w_d * t + phi) - b_0 * w_d * np.sin(
+        w_d * t + phi)
     return np.array([theta_pi, omega_pi])
 
 
@@ -95,9 +79,9 @@ def solve_for_ics(t_i, theta_i, omega_i, b, k, i, baked_torque):
     baked in, such as amplitudes, period, phases.
     :return: The values of the coefficients A and B for the complementary 
     function."""
-    pis = (baked_torque(t_i, b, k, i)).squeeze()
-    matrix = calculate_cf(t_i, b, k, i).squeeze()
-    rhs_vector = np.array([[theta_i], [omega_i]]).squeeze() - pis
+    pis = baked_torque(t_i, b, k, i)
+    matrix = calculate_cf_matrix(t_i, b, k, i).squeeze()
+    rhs_vector = np.array([[theta_i], [omega_i]]) - pis
     return np.linalg.solve(matrix, rhs_vector)
 
 
@@ -114,8 +98,9 @@ def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
     parameters with relevant parameters baked in.
     :return: Array of [t, theta, omega], each column being a different 
     variable."""
-    cf_constants = solve_for_ics(t_i, y_i[0], y_i[1], b, k, i, baked_torque)
-    cf_matrix = calculate_cf(t, b, k, i)
+    cf_constants = solve_for_ics(t_i, y_i[0], y_i[1], b, k, i,
+                                 baked_torque).squeeze()
+    cf_matrix = calculate_cf_matrix(t, b, k, i)
     results = np.einsum('ijk,j', cf_matrix, cf_constants)
     results += baked_torque(t, b, k, i)
     return np.array([t, results[0, :], results[1, :]]).T
@@ -123,11 +108,21 @@ def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
 
 def theory_response(b, k, i, b_prime, k_prime, w_d):
     """Gets the transfer function for a sinusoidal input torque. Note that 
-    w_d is the only array."""
-    try:
-        transfer = 1 / (
-        -i * w_d ** 2 + w_d * (b - b_prime) * 1j + (k - k_prime))
-    except RuntimeWarning:
-        # Divide by 0.
-        transfer = np.Inf
+    w_d must be the only array."""
+    denominator = (-i * w_d ** 2 + w_d * (b - b_prime) * 1j + (k - k_prime))
+    valids = np.where(denominator != 0)[0]
+    print(denominator, valids)
+    transfer = np.ones(denominator.shape) * np.Inf
+    transfer[valids] = 1 / denominator[valids]
     return transfer
+
+# baked = h.baker(calculate_sine_pi, ["", "", "", "", 1, 0.001, 0],
+#                pos_to_pass_through=(0, 3))
+# results = calc_theory_soln(np.arange(0, 50, 0.01), 0, [0, 0], -1, 5, 1,
+#                           baked)
+# plt.plot(results[:, 0], results[:, 1])
+# plt.show()
+#
+# trans = theory_response(-1, 5, 1, 0, 0, np.arange(0, 140, 1))
+# plt.plot(np.arange(0, 140, 1), np.absolute(trans)**2)
+# plt.show()

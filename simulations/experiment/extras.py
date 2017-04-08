@@ -2,6 +2,7 @@
 not currently needed."""
 
 import numpy as np
+import re
 
 from simulations.experiment import helpers as h
 
@@ -223,3 +224,7 @@ def peakdetect(y_axis, x_axis=None, lookahead=200, delta=0, n_maxima=None,
         ind = np.argpartition(min_peaks[:, 1], -n_minima)[-n_minima:]
         min_peaks = min_peaks[ind, :]
     return [max_peaks, min_peaks]
+
+
+# regex pattern to find numbers of any kind in a string.
+numeric_const_pattern = r"[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[Ee][+-]?\d+)?"

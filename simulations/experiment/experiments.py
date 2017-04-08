@@ -10,7 +10,8 @@ from matplotlib import pyplot as plt
 
 # from simulations.experiment import conditional_pend as c
 from simulations.experiment import helpers as h
-from simulations.experiment import theory_calc as t
+from simulations.experiment import theory_calc2 as t
+from simulations.experiment import measurement as m
 from simulations.configs_and_testing import testing as test
 
 
@@ -25,7 +26,7 @@ def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
     # Theoretical calculation.
     sines_torque = h.baker(
         t.calculate_sine_pi, ["", "", "", "", g_0_mags, w_ds, phases],
-        position_to_pass_through=(0, 3))
+        pos_to_pass_through=(0, 3))
     theory = t.calc_theory_soln(exp_results[:, 0], t0, y0, b - b_prime,
                                 k - k_prime, i, sines_torque)
 
@@ -89,7 +90,7 @@ def exp_vs_an_parameters():
     start_time = time.time()
 
     # Define the initial and setup conditions.
-    config_dict = h.yaml_read('MeasuringAccuracy.yaml')
+    config_dict = h.yaml_read('config.yaml')
     t0 = config_dict['t0']
     t_fin = config_dict['t_fin']
     dt = config_dict['dt']
@@ -164,7 +165,7 @@ class Experiment:
         self.config_path = '../configs_and_testing/'
         if not os.path.exists(self.logpath):
             os.makedirs(self.logpath)
-        self.config_dict = h.yaml_read(self.config_path + self.config)
+        self.prms = h.yaml_read(self.config_path + self.config)
 
     def run(self, quick_save=True):
         """Run the experiment and get a set of results. Save at the end if 
@@ -188,7 +189,7 @@ class Experiment:
                 'This is the log file for {}.\n\nExperiment description: {}\n\n'
                 'Configuration:\n{}\n\nLogs:\n{}\n\nComments: {}.\n\nTime from '
                 'start\tName\tCheckpoint no.\n'.format(
-                    self.filename, self.description, self.config_dict,
+                    self.filename, self.description, self.prms,
                     self.log_text, comments))
         with open(self.logpath + self.filename + '-log.txt', 'ab') as log:
             np.savetxt(log, timings, fmt='%s')
@@ -197,20 +198,38 @@ class Experiment:
         print('Results saved to {} and log file {}.'.format(
             self.filename + '.csv', self.filename + '-log.txt'))
 
-    def _log(self, message, log_type='INFO'):
-        """Add a log message along with the current time to the log file. Can 
-        only be used during a main_operation function."""
-        time_now = self.timer.checkpoint(checkp_name=message)[0]
-        self.log_text += '{}\t{}\t{}\n'.format(time_now, log_type, message)
-
     def main_operation(self):
         """Override this with the main sequence of operations to be done for 
         each experiment. Return a pandas data frame with correctly labelled 
         columns. Note that innermost brackets represent a single row."""
         print('The experiment being run, {}, does not have a main_operation() '
-              'method, so the base class one is being called.'.format(
-            self.__class__.__name__))
+              'method defined, so the base class one (ie. from Experiment) is '
+              'being called.'.format(self.__class__.__name__))
         return pd.DataFrame(data=[3, 4, 5], columns=['Test'])
+
+    def _make_vars(self, *args):
+        """DANGER!! This function MUST NOT be used for anything other than 
+        setting variables to their string values! It reads config_dict for each 
+        key in args and creates a variable with the same name as the key. For 
+        example, key = config_dict['key'] if args contains 'key'. DO NOT MESS 
+        with this function!"""
+        for arg in args:
+            assert type(arg) is str, "Keys must be strings."
+            execution_order = 'self.{} =  self.config_dict[\'{}\']'.format(arg,
+                                                                           arg)
+            execution_order.replace('array', 'np.array')
+            exec(execution_order)
+            try:
+                exec('self.{} = self.{}.astype(float)'.format(arg, arg))
+            except ValueError:
+                # Cannot convert this variable type to a float.
+                pass
+
+    def _log(self, message, log_type='INFO'):
+        """Add a log message along with the current time to the log file. Can 
+        only be used during a main_operation function."""
+        time_now = self.timer.checkpoint(checkp_name=message)[0]
+        self.log_text += '{}\t{}\t{}\n'.format(time_now, log_type, message)
 
 
 class MeasuringAccuracy(Experiment):
@@ -220,13 +239,124 @@ class MeasuringAccuracy(Experiment):
     def __init__(self, config=None, filename=None, description=None):
         super(MeasuringAccuracy, self).__init__(config, filename, description)
 
+    @staticmethod
+    def _single_operation(times, b, k, i, b_prime, k_prime, w_d, g_0_mag, phase,
+                          t0, y0):
+        """One run for one value of b, k, i, b_prime, k_prime, 
+        torque_amplitude, torque_phase, torque_frequency and noise. t is a time 
+        array."""
+
+        times = h.check_nyquist(times, w_d, b, b_prime, k, k_prime, i)
+
+        torque = g_0_mag * np.sin(w_d * times + phase)
+        pi_contr = h.baker(t.calculate_sine_pi, [
+            "", "", "", "", g_0_mag, w_d, phase], pos_to_pass_through=(0, 3))
+        theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i,
+                                    pi_contr)
+
+        plt.plot(times, theory[:, 1])
+        plt.show()
+
+        if b - b_prime > 0:
+            # Will only reach steady state if this is the case, otherwise no
+            # point making a response curve. Measure one point.
+            ss_times = m.identify_ss(times, theory[:, 1])
+            frq, fft_theta = m.calc_fft(
+                times[(times >= ss_times[0]) * (times <= ss_times[1])],
+                theory[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
+
+            # Half-amplitude of peak used to calculate bandwidth.
+            freq = m.calc_freqs(np.absolute(fft_theta), frq)
+            amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
+                                                    (times <= ss_times[1])])
+            phase = m.calc_phase(theory[:, 1], torque)
+            return np.array([freq, amp, phase]), theory
+        else:
+            return theory
+
     def main_operation(self):
-        # do stuff - needs changing!
-        return
+        # feed in fixed b - b', k - k', torque, i, noise level and type,
+        # but a range of driving frequencies to test.
+
+        b_s = self.prms['b_s']
+        k_s = self.prms['k_s']
+        i_s = self.prms['i_s']
+        b_primes = self.prms['b\'s']
+        k_primes = self.prms['k\'s']
+        w_ds = np.arange(self.prms['w_d_start'],
+                         self.prms['w_d_final'],
+                         self.prms['w_d_step'])
+        g_0_mags = self.prms['g0s']
+        phases = self.prms['phis']
+
+        # check nyquist obeyed.
+        # generate the initial array of time points and also a more closely
+        # spaced array of points around the expected peak position, in terms
+        # of driving frequency.
+
+        # get theoretical
+        # response curve - amplitude and phase against angular frequency.
+        # resonant peak
+        w2, gamma = h.find_w2_gamma(b_s - b_primes, k_s - k_primes, i_s)
+
+        # 10 * bandwidth on either side
+        width = 10 * np.absolute(gamma) if gamma != 0 else self.prms[
+            'w_d_step']
+        if w2 <= 0:
+            w_res = np.sqrt(-w2)
+        else:
+            w_res = 0
+        w_range = np.linspace(w_res - width, w_res + width, 500)
+        f_range = w_range / (2 * np.pi)
+        # Convert this range of frequency points into something in the time
+        # domain.
+
+        t0 = self.prms['t0'].squeeze()
+        y0 = np.array([self.prms['theta_0'], self.prms[
+            'omega_0']]).squeeze()
+        # for f in f_range:
+        #    t_max = 1/f
+        #    dt = self.config_dict['dt']
+        times = np.arange(0, self.prms['t_fin'], self.prms['dt'])
+        single_run = h.baker(self._single_operation,
+                             [times, '', '', '', '', '', '', '', '', t0, y0],
+                             pos_to_pass_through=(1, 8))
+        print(h.all_combs(single_run, b_s, k_s, i_s, b_primes, k_primes, w_ds,
+                          g_0_mags, phases))
+
+        # note w_d is the only array. Get response curve.
+        # resp_curve = np.array(h.all_combs(
+        #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_ds))
+        # resp_curve = pd.DataFrame(resp_curve, columns=['b', 'k', 'I', 'b\'',
+        #                                               'k\'', 'w_d',
+        #                                               'transfer'])
+        # resp_curve2 = pd.DataFrame(np.array(h.all_combs(
+        #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_range)),
+        #    columns=['b', 'k', 'I', 'b\'', 'k\'', 'w_d', 'transfer'])
+        # resp_curve = resp_curve.append(resp_curve2).sort_values('w_d')
+        return super(MeasuringAccuracy, self).main_operation()
 
 
-m1 = MeasuringAccuracy()
-m1.run()
+# plot time domain displacement and velocity using theory and check it
+# agrees with analytic forms once in each of 3 types of transients
+# and b - b', k - k' <, =, > 0.
+
+# For each value of b - b', k - k' and other parameters varied,
+# plot the expected response curve against the actual, which is
+# obtained by using the measurement functions and varying the driving
+# frequency.
+
+
+# Nyquist sampling error! Be aware of this! Both freq and amplitude can
+# be wrongly measured as a result! Digitisation error also. Also set the
+# first_is_peak parameter if first signal in the amplitude can be the
+# peak (true usually only for noiseless signals).
+# If another frequency present, perhaps filter the signal first?
+
+
+
+# m1 = MeasuringAccuracy()
+# m1.run()
 
 
 def measurement_accuracy(y0, t0, t, i, b_prime, k_prime, b, k, g_0_mags, w_ds,
@@ -246,7 +376,7 @@ def measurement_accuracy(y0, t0, t, i, b_prime, k_prime, b, k, g_0_mags, w_ds,
     # Theoretical calculation.
     sines_torque = h.baker(
         t.calculate_sine_pi, ["", "", "", "", g_0_mags, w_ds, phases],
-        position_to_pass_through=(0, 3))
+        pos_to_pass_through=(0, 3))
     theory = t.calc_theory_soln(t, t0, y0, b - b_prime, k - k_prime, i,
                                 sines_torque)
 

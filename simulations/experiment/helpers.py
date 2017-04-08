@@ -40,7 +40,7 @@ def check_types_lengths(*variables, check_lengths=True):
     return converted_vars
 
 
-def baker(fun, args=None, kwargs=None, position_to_pass_through=(0, 0)):
+def baker(fun, args=None, kwargs=None, pos_to_pass_through=(0, 0)):
     """Returns an object given by the function 'fun' with its arguments,
     known as a curried function or closure. These objects can be passed into
     other functions to be evaluated.
@@ -49,7 +49,7 @@ def baker(fun, args=None, kwargs=None, position_to_pass_through=(0, 0)):
     :param args: A list of the positional arguments. Put any placeholder in
     the index that will not be baked into the function.
     :param kwargs: A list of keyword arguments.
-    :param position_to_pass_through: A tuple specifying the index of
+    :param pos_to_pass_through: A tuple specifying the index of
     positional arguments for the function 'fun' that will be skipped in
     baking. For example, (1,3) will skip positional arguments 1 through to
     3, so that the baked arguments in function 'fun' will be:
@@ -67,20 +67,58 @@ def baker(fun, args=None, kwargs=None, position_to_pass_through=(0, 0)):
     if kwargs is None:
         kwargs = {}
 
-    if type(position_to_pass_through) is int:
-        position_to_pass_through = (position_to_pass_through,
-                                    position_to_pass_through)
-    elif type(position_to_pass_through) is not tuple:
+    if type(pos_to_pass_through) is int:
+        pos_to_pass_through = (pos_to_pass_through,
+                               pos_to_pass_through)
+    elif type(pos_to_pass_through) is not tuple:
         raise TypeError('The variable \'position_to_pass_through\' must be a '
                         'tuple or int.')
 
     def wrapped(*result):
         """Parameter position_to_pass_through specifies the index of the
         parameter 'result' in sequence of positional arguments for 'fun'."""
-        return fun(*(args[:position_to_pass_through[0]] + list(result) + args[(
-            position_to_pass_through[1]+1):]), **kwargs)
+        return fun(*(args[:pos_to_pass_through[0]] + list(result) + args[(
+            pos_to_pass_through[1] + 1):]), **kwargs)
 
     return wrapped
+
+
+def check_nyquist(time_array, w_d, b, b_prime, k, k_prime, i):
+    """Check Nyquist criterion is obeyed by the signal, for a given driving 
+    frequency and the transient frequency calculated from the remaining 
+    parameters."""
+    # At any time, the signal will consist of noise + PI + transient.
+    w2 = find_w2_gamma(b - b_prime, k - k_prime, i)[0]
+    w_res = 0
+    if w2 < 0:
+        w_res = np.sqrt(-w2)  # transient oscillates
+    w = w_d if w_d > w_res else w_res
+
+    # Check Nyquist criterion for the signal given a frequency. dt is the
+    # sampling time.
+    dt = np.abs(time_array[1] - time_array[0])
+    f_sample = 1 / dt
+    f_signal_max = w / (2 * np.pi)
+    nyquist_limit = 2 * f_signal_max
+    if f_sample < nyquist_limit:
+        print('Sampling frequency increased to prevent aliasing.')
+        time_array = np.arange(time_array[0], time_array[-1], 1 / nyquist_limit)
+    return time_array
+
+
+def all_combs(func, *args):
+    """Iterate over a function multiple times using different input values.
+    :param func: A baked function object with the correct number of remaining 
+    arguments to be filled by args.
+    :param args: A list of arrays for argument 1, 2, etc. for the function. E.g.
+    If args = [[1,2], [3,4]], the function will be called thus:
+    func(1,3), func(1,4), func(2,3), func(2,4). All these values will be 
+    returned as a list of results."""
+    results = []
+    for arg in np.array(np.meshgrid(*args)).T.reshape(-1, len(args)):
+        results.append([*arg, func(*arg)])
+
+    return results
 
 
 def yaml_read(yaml_file):
@@ -97,7 +135,11 @@ def yaml_read(yaml_file):
 def _check_iterable(variable):
     """Checks that a variable is iterable, such as tuple, list or array, 
     but is not a string."""
-    return hasattr(variable, '__iter__') and type(variable) is not str
+    try:
+        len(variable)
+        return hasattr(variable, '__iter__') and type(variable) is not str
+    except TypeError:
+        return False
 
 
 def combine_quantities(quants, errs=None, operation='mean', axis=None):
@@ -132,3 +174,22 @@ def combine_quantities(quants, errs=None, operation='mean', axis=None):
     else:
         raise ValueError('Invalid operation.')
     return np.array([quantity, err]).squeeze()
+
+
+def find_w2_gamma(b, k, i):
+    w2 = b ** 2 / (4 * i ** 2) - k / i
+    gamma = b / i
+    return w2, gamma
+
+
+def make_vars(config_dict, *args):
+    """DANGER!! This function MUST NOT be used for anything other than 
+    setting variables to their string values! It reads config_dict for each 
+    key in args and creates a variable with the same name as the key. For 
+    example, key = config_dict['key'] if args contains 'key'."""
+    variables = []
+    for arg in args:
+        assert type(arg) is str, "Keys must be strings."
+        exec('{} = {}[\'{}\']'.format(arg, config_dict, arg))
+        exec('variables.append({})'.format(arg))
+    return variables

@@ -5,6 +5,7 @@ import pyfftw
 import scipy.signal as sg
 
 import simulations.experiment.helpers as h
+import matplotlib.pyplot as plt
 
 
 def calc_fft(x_axis, y_axis):
@@ -224,20 +225,19 @@ def _norm_correlations(x_axis, y_axis, n_per_segment):
                 correlations.append(0)
     return xs, np.array(correlations).squeeze()
 
-
-if __name__ == '__main__':
-    t = np.linspace(0, 1000, 100000)
+# if __name__ == '__main__':
+#    t = np.linspace(0, 1000, 100000)
     # Nyquist sampling error! Be aware of this! Both freq and amplitude can
     # be wrongly measured as a result! Digitisation error also. Also set the
     # first_is_peak parameter if first signal in the amplitude can be the
     # peak (true usually only for noiseless signals).
-    y = np.sin(5 * t + np.pi / 3) + np.cos(5 * t - np.pi / 4)
-    torque = np.sin(5 * t)
+#    y = np.sin(5 * t + np.pi / 3) + np.cos(5 * t - np.pi / 4)
+#    torque = np.sin(5 * t)
     # If another frequency present, perhaps filter the signal first?
-    ss_times = identify_ss(t, y)
-    frq, full_Y = calc_fft(t[(t >= ss_times[0]) * (t <= ss_times[1])],
-                           y[(t >= ss_times[0]) * (t <= ss_times[1])])
+#    ss_times = identify_ss(t, y)
+#    frq, full_Y = calc_fft(t[(t >= ss_times[0]) * (t <= ss_times[1])],
+#                           y[(t >= ss_times[0]) * (t <= ss_times[1])])
     # Half-power used to calculate bandwidth.
-    print(calc_freqs(np.absolute(full_Y) ** 2, frq))
-    print(calc_one_amplitude(y[(t >= ss_times[0]) * (t <= ss_times[1])]))
-    print(calc_phase(y, torque))
+#    print(calc_freqs(np.absolute(full_Y) ** 2, frq))
+#    print(calc_one_amplitude(y[(t >= ss_times[0]) * (t <= ss_times[1])]))
+#    print(calc_phase(y, torque))
