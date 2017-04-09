@@ -9,8 +9,9 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 # from simulations.experiment import conditional_pend as c
+from simulations.experiment import plotter as p
 from simulations.experiment import helpers as h
-from simulations.experiment import theory_calc2 as t
+from simulations.experiment import theory as t
 from simulations.experiment import measurement as m
 from simulations.configs_and_testing import testing as test
 
@@ -134,10 +135,6 @@ def exp_vs_an_parameters():
     return
 
 
-# TODO create a Nyquist checking function. Also a function to generate time
-# TODO values equally spaced, but closely spaced near the expected peak.
-
-
 class Experiment:
     """Define experiments here, with input data, an output file to save to, 
     and a sequence of operations that generates a final array of results."""
@@ -167,18 +164,19 @@ class Experiment:
             os.makedirs(self.logpath)
         self.prms = h.yaml_read(self.config_path + self.config)
 
-    def run(self, quick_save=True):
+    def run(self, tags=False, save=True):
         """Run the experiment and get a set of results. Save at the end if 
         specified. Start timer and log runtime always, in a separate logging 
         file. If not auto_save, ask for comments before saving. Save the 
-        range of parameters run for at the top in summarised form."""
+        range of parameters run for at the top in summarised form. The dict 
+        of dataframes from main_operation is saved in a separate file each."""
 
         self.timer.start_timer()
         results = self.main_operation()
         timings = self.timer.see_checkpoints()
 
         # Save timing code.
-        if not quick_save:
+        if tags:
             # save results and logs.
             comments = input('Add some comments about this experiment: ')
         else:
@@ -193,10 +191,14 @@ class Experiment:
                     self.log_text, comments))
         with open(self.logpath + self.filename + '-log.txt', 'ab') as log:
             np.savetxt(log, timings, fmt='%s')
+        print('Log file saved to {}.'.format(self.filename + '-log.txt'))
 
-        results.to_csv('{}'.format(self.savepath + self.filename + '.csv'))
-        print('Results saved to {} and log file {}.'.format(
-            self.filename + '.csv', self.filename + '-log.txt'))
+        if save:
+            for dataframe in results:
+                results[dataframe].to_csv('{}'.format(self.savepath +
+                                                      self.filename +
+                                                      '-' + dataframe + '.csv'))
+                print('Results saved to {}.'.format(self.filename + '.csv'))
 
     def main_operation(self):
         """Override this with the main sequence of operations to be done for 
@@ -205,7 +207,7 @@ class Experiment:
         print('The experiment being run, {}, does not have a main_operation() '
               'method defined, so the base class one (ie. from Experiment) is '
               'being called.'.format(self.__class__.__name__))
-        return pd.DataFrame(data=[3, 4, 5], columns=['Test'])
+        return {'test': pd.DataFrame(data=[3, 4, 5], columns=['Test'])}
 
     def _log(self, message, log_type='INFO'):
         """Add a log message along with the current time to the log file. Can 
@@ -221,9 +223,8 @@ class MeasuringAccuracy(Experiment):
     def __init__(self, config=None, filename=None, description=None):
         super(MeasuringAccuracy, self).__init__(config, filename, description)
 
-    @staticmethod
-    def _single_operation(times, b, k, i, b_prime, k_prime, w_d, g_0_mag, phase,
-                          n_frq_peak, t0, y0):
+    def _single_operation(self, times, b, k, i, b_prime, k_prime, w_d, g_0_mag,
+                          phase, n_frq_peak, t0, y0):
         """One run for one value of b, k, i, b_prime, k_prime, 
         torque_amplitude, torque_phase, torque_frequency and noise. t is a time 
         array."""
@@ -235,23 +236,25 @@ class MeasuringAccuracy(Experiment):
             "", "", "", "", g_0_mag, w_d, phase], pos_to_pass_through=(0, 3))
         theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i,
                                     pi_contr)
-
+        self._log('after nyquist check')
         if b - b_prime > 0:
             # Will only reach steady state if this is the case, otherwise no
             # point making a response curve. Measure one point.
             ss_times = m.identify_ss(times, theory[:, 1])
+            self._log('before fft')
             frq, fft_theta = m.calc_fft(
                 times[(times >= ss_times[0]) * (times <= ss_times[1])],
                 theory[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
             # for low frequencies, the length of time of the signal must also
             # be sufficiently wrong for the peak position to be measured
             # properly.
-
+            self._log('before mmts')
             # Half-amplitude of peak used to calculate bandwidth.
             freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
             amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
                                                     (times <= ss_times[1])])
             phase = m.calc_phase(theory[:, 1], torque)
+            self._log('after mmts')
             return True, theory, np.array([freq, amp, phase])
         else:
             return False, theory
@@ -265,8 +268,7 @@ class MeasuringAccuracy(Experiment):
         i_s = self.prms['i_s']
         b_primes = self.prms['b\'s']
         k_primes = self.prms['k\'s']
-        w_ds = np.arange(self.prms['w_d_start'],
-                         self.prms['w_d_final'],
+        w_ds = np.arange(self.prms['w_d_start'], self.prms['w_d_final'],
                          self.prms['w_d_step'])
         g_0_mags = self.prms['g0s']
         phases = self.prms['phis']
@@ -274,67 +276,86 @@ class MeasuringAccuracy(Experiment):
         y0 = np.array([self.prms['theta_0'], self.prms[
             'omega_0']]).squeeze()
         times = np.arange(t0, self.prms['tfin'], self.prms['dt'])
+        self._log('after config setup')
 
-        # generate the initial array of time points and also a more closely
-        # spaced array of points around the expected peak position, in terms
-        # of driving frequency.
-
-        # get theoretical
-        # response curve - amplitude and phase against angular frequency.
-        # resonant peak
+        # Get the theoretical position of the peak and generate a finely
+        # spaced set of frequency points around it to measure with greater
+        # resolution here.
         w2, gamma = h.find_w2_gamma(b_s - b_primes, k_s - k_primes, i_s)
 
-        # 2.5 * bandwidth on either side
+        # 5 * bandwidth on either side
         gamma = np.absolute(gamma)
-        width = 2.5 * gamma if gamma != 0 else self.prms['w_d_step']
+        width = 5 * gamma if gamma != 0 else self.prms['w_d_step']
         if w2 <= 0:
             w_res = np.sqrt(-w2)
         else:
             w_res = 0
-        w_range = np.linspace(w_res - width, w_res + width, 100)
-
-        # The time constant for reaching SS is roughly 2/gamma, for positive
-        # gamma, so run the experiment for 5 * this to ensure SS reached.
-        # Note that the frequency peak is unaffected by the start and end
-        # times of fine_t, just the range and step size.
-        # fine_t = np.arange(5 * 2./gamma, fine_t_max + 5 * 2./gamma, fine_dt)
+        w_range = np.linspace(w_res - width, w_res + width, 20)
         single_run = h.baker(self._single_operation,
                              [times, '', '', '', '', '', '', '', '', '', t0,
                               y0], pos_to_pass_through=(1, 9))
-        all_times = h.all_combs(single_run, b_s, k_s, i_s, b_primes, k_primes,
-                                w_range, g_0_mags, phases, 1)
-        # final argument 1/2 for 1 frequency peak expected.
-        fft_data = []
-        real_data = []
-        for i in range(len(all_times)):
-            real_data.append(all_times[i][-1][1])
-            if all_times[i][-1][0]:
-                fft_data.append(all_times[i][-1][-1])
-        mmts = np.array(fft_data)
-        ang_freqs, err_angfreqs = mmts[:, 0, 0] * 2 * np.pi, \
-                                  mmts[:, 0, 1] * 2 * np.pi
-        amps, err_amps = mmts[:, 1, 0] / g_0_mags, mmts[:, 1, 1] / g_0_mags
-        phases, err_phases = mmts[:, 2, 0], mmts[:, 2, 1]
-        # TODO get finer resolution near the peak
-        # note w_d is the only array. Get response curve.
-        resp_curve = np.array(h.all_combs(
-            t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_range))
-        plt.plot(resp_curve[:, -2], np.absolute(resp_curve[:, -1]), ':')
-        plt.errorbar(ang_freqs, amps, yerr=err_amps, xerr=err_angfreqs,
-                     fmt='.', markersize='3')
-        plt.show()
-        plt.plot(resp_curve[:, -2], np.angle(resp_curve[:, -1]), ':')
-        plt.errorbar(ang_freqs, phases, yerr=err_phases, xerr=err_angfreqs,
-                     fmt='.', markersize='3')
-        plt.show()
-        # resp_curve = pd.DataFrame(resp_curve, columns=['b', 'k', 'I', 'b\'',
+
+        ws = [w_ds, w_range]
+        self._log('after baker function')
+        for j in range(len(ws)):
+            all_times = h.all_combs(single_run, b_s, k_s, i_s, b_primes,
+                                    k_primes, ws[j], g_0_mags, phases, 1)
+            self._log('after all combs run')
+            # final argument 1/2 for 1 frequency peak expected.
+            fft_data = []
+            real_data = []
+            for i in range(len(all_times)):
+                real_data.append(all_times[i][-1][1])
+                if all_times[i][-1][0]:
+                    fft_data.append(all_times[i][-1][-1])
+            if j == 0:
+                fft_mmts = np.array(fft_data)
+                # Get the theoretical response curves. Note that w_d is the only
+                # array.
+                fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s,
+                                                  i_s, b_primes, k_primes,
+                                                  ws[j]))
+            else:
+                fft_mmts = np.append(fft_mmts, np.array(fft_data), axis=0)
+                fft_mmts = fft_mmts[fft_mmts[:, 0, 0].argsort()]
+                fft_theory = np.append(fft_theory, np.array(h.all_combs(
+                    t.theory_response, b_s, k_s, i_s, b_primes, k_primes,
+                    ws[j])), axis=0)
+                fft_theory = fft_theory[fft_theory[:, -2].argsort()]
+            self._log('after fft setup')
+        ang_freqs = np.array([fft_mmts[:, 0, 0],
+                              fft_mmts[:, 0, 1]]).T * 2 * np.pi
+        amps = np.array([fft_mmts[:, 1, 0], fft_mmts[:, 1, 1]]).T / g_0_mags
+        phases = np.array([fft_mmts[:, 2, 0], fft_mmts[:, 2, 1]]).T
+
+        theory_n_mmt = \
+            [
+                [
+                    [
+                        [fft_theory[:, -2], np.absolute(fft_theory[:, -1])],
+                        [ang_freqs, amps]
+                    ],
+                    [
+                        [fft_theory[:, -2], np.angle(fft_theory[:, -1])],
+                        [ang_freqs, phases]
+                    ]
+                ]
+            ]
+        self._log('before plot')
+        p.two_by_n_plotter(theory_n_mmt, x_axes_labels=['$\omega$/rad/s'],
+                           y_top_labels=[r'$\left|\frac{\theta(\omega)}{G('
+                                         r'\omega)}\right|$'],
+                           y_bottom_labels=[r'arg$(\frac{\theta(\omega)}{G('
+                                            r'\omega)})$'])
+        self._log('after plot')
+        #fft_theory = pd.DataFrame(fft_theory, columns=['b', 'k', 'I', 'b\'',
         #                                               'k\'', 'w_d',
         #                                               'transfer'])
-        # resp_curve2 = pd.DataFrame(np.array(h.all_combs(
+        #resp_curve2 = pd.DataFrame(np.array(h.all_combs(
         #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_range)),
-        #    columns=['b', 'k', 'I', 'b\'', 'k\'', 'w_d', 'transfer'])
-        # resp_curve = resp_curve.append(resp_curve2).sort_values('w_d')
-        return super(MeasuringAccuracy, self).main_operation()
+        #     columns=['b', 'k', 'I', 'b\'', 'k\'', 'w_d', 'transfer'])
+        #resp_curve2 = resp_curve2.append(resp_curve2).sort_values('w_d')
+        #return super(MeasuringAccuracy, self).main_operation()
 
 
 # plot time domain displacement and velocity using theory and check it

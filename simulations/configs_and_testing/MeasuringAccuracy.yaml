@@ -20,10 +20,9 @@ phis:   [0]
 
 # All values fed into one experiment. Values in radians. Range from 0-20Hz
 # roughly.
-w_d_start:     5.
-w_d_step:      5.
-w_d_final:    140.
-#140.
+w_d_start:   5.
+w_d_step:    5.
+w_d_final: 145.
 
 # Test how noise level and frequency affects the measuring functions'
 # accuracy and error. Perhaps modifying these apparatus by adding filtering.

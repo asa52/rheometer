@@ -111,5 +111,4 @@ def theory_response(b, k, i, b_prime, k_prime, w_d):
     denominator = h.convert_to_array(-i * w_d ** 2 + w_d * (b - b_prime) * 1j +
                                      (k - k_prime))
     transfer = np.reciprocal(denominator)
-    print(transfer, denominator)
     return transfer
