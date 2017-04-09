@@ -207,24 +207,6 @@ class Experiment:
               'being called.'.format(self.__class__.__name__))
         return pd.DataFrame(data=[3, 4, 5], columns=['Test'])
 
-    def _make_vars(self, *args):
-        """DANGER!! This function MUST NOT be used for anything other than 
-        setting variables to their string values! It reads config_dict for each 
-        key in args and creates a variable with the same name as the key. For 
-        example, key = config_dict['key'] if args contains 'key'. DO NOT MESS 
-        with this function!"""
-        for arg in args:
-            assert type(arg) is str, "Keys must be strings."
-            execution_order = 'self.{} =  self.config_dict[\'{}\']'.format(arg,
-                                                                           arg)
-            execution_order.replace('array', 'np.array')
-            exec(execution_order)
-            try:
-                exec('self.{} = self.{}.astype(float)'.format(arg, arg))
-            except ValueError:
-                # Cannot convert this variable type to a float.
-                pass
-
     def _log(self, message, log_type='INFO'):
         """Add a log message along with the current time to the log file. Can 
         only be used during a main_operation function."""
@@ -241,7 +223,7 @@ class MeasuringAccuracy(Experiment):
 
     @staticmethod
     def _single_operation(times, b, k, i, b_prime, k_prime, w_d, g_0_mag, phase,
-                          t0, y0):
+                          n_frq_peak, t0, y0):
         """One run for one value of b, k, i, b_prime, k_prime, 
         torque_amplitude, torque_phase, torque_frequency and noise. t is a time 
         array."""
@@ -254,9 +236,6 @@ class MeasuringAccuracy(Experiment):
         theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i,
                                     pi_contr)
 
-        plt.plot(times, theory[:, 1])
-        plt.show()
-
         if b - b_prime > 0:
             # Will only reach steady state if this is the case, otherwise no
             # point making a response curve. Measure one point.
@@ -264,15 +243,18 @@ class MeasuringAccuracy(Experiment):
             frq, fft_theta = m.calc_fft(
                 times[(times >= ss_times[0]) * (times <= ss_times[1])],
                 theory[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
+            # for low frequencies, the length of time of the signal must also
+            # be sufficiently wrong for the peak position to be measured
+            # properly.
 
             # Half-amplitude of peak used to calculate bandwidth.
-            freq = m.calc_freqs(np.absolute(fft_theta), frq)
+            freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
             amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
                                                     (times <= ss_times[1])])
             phase = m.calc_phase(theory[:, 1], torque)
-            return np.array([freq, amp, phase]), theory
+            return True, theory, np.array([freq, amp, phase])
         else:
-            return theory
+            return False, theory
 
     def main_operation(self):
         # feed in fixed b - b', k - k', torque, i, noise level and type,
@@ -288,8 +270,11 @@ class MeasuringAccuracy(Experiment):
                          self.prms['w_d_step'])
         g_0_mags = self.prms['g0s']
         phases = self.prms['phis']
+        t0 = self.prms['t0'].squeeze()
+        y0 = np.array([self.prms['theta_0'], self.prms[
+            'omega_0']]).squeeze()
+        times = np.arange(t0, self.prms['tfin'], self.prms['dt'])
 
-        # check nyquist obeyed.
         # generate the initial array of time points and also a more closely
         # spaced array of points around the expected peak position, in terms
         # of driving frequency.
@@ -299,34 +284,49 @@ class MeasuringAccuracy(Experiment):
         # resonant peak
         w2, gamma = h.find_w2_gamma(b_s - b_primes, k_s - k_primes, i_s)
 
-        # 10 * bandwidth on either side
-        width = 10 * np.absolute(gamma) if gamma != 0 else self.prms[
-            'w_d_step']
+        # 2.5 * bandwidth on either side
+        gamma = np.absolute(gamma)
+        width = 2.5 * gamma if gamma != 0 else self.prms['w_d_step']
         if w2 <= 0:
             w_res = np.sqrt(-w2)
         else:
             w_res = 0
-        w_range = np.linspace(w_res - width, w_res + width, 500)
-        f_range = w_range / (2 * np.pi)
-        # Convert this range of frequency points into something in the time
-        # domain.
+        w_range = np.linspace(w_res - width, w_res + width, 100)
 
-        t0 = self.prms['t0'].squeeze()
-        y0 = np.array([self.prms['theta_0'], self.prms[
-            'omega_0']]).squeeze()
-        # for f in f_range:
-        #    t_max = 1/f
-        #    dt = self.config_dict['dt']
-        times = np.arange(0, self.prms['t_fin'], self.prms['dt'])
+        # The time constant for reaching SS is roughly 2/gamma, for positive
+        # gamma, so run the experiment for 5 * this to ensure SS reached.
+        # Note that the frequency peak is unaffected by the start and end
+        # times of fine_t, just the range and step size.
+        # fine_t = np.arange(5 * 2./gamma, fine_t_max + 5 * 2./gamma, fine_dt)
         single_run = h.baker(self._single_operation,
-                             [times, '', '', '', '', '', '', '', '', t0, y0],
-                             pos_to_pass_through=(1, 8))
-        print(h.all_combs(single_run, b_s, k_s, i_s, b_primes, k_primes, w_ds,
-                          g_0_mags, phases))
-
+                             [times, '', '', '', '', '', '', '', '', '', t0,
+                              y0], pos_to_pass_through=(1, 9))
+        all_times = h.all_combs(single_run, b_s, k_s, i_s, b_primes, k_primes,
+                                w_range, g_0_mags, phases, 1)
+        # final argument 1/2 for 1 frequency peak expected.
+        fft_data = []
+        real_data = []
+        for i in range(len(all_times)):
+            real_data.append(all_times[i][-1][1])
+            if all_times[i][-1][0]:
+                fft_data.append(all_times[i][-1][-1])
+        mmts = np.array(fft_data)
+        ang_freqs, err_angfreqs = mmts[:, 0, 0] * 2 * np.pi, \
+                                  mmts[:, 0, 1] * 2 * np.pi
+        amps, err_amps = mmts[:, 1, 0] / g_0_mags, mmts[:, 1, 1] / g_0_mags
+        phases, err_phases = mmts[:, 2, 0], mmts[:, 2, 1]
+        # TODO get finer resolution near the peak
         # note w_d is the only array. Get response curve.
-        # resp_curve = np.array(h.all_combs(
-        #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_ds))
+        resp_curve = np.array(h.all_combs(
+            t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_range))
+        plt.plot(resp_curve[:, -2], np.absolute(resp_curve[:, -1]), ':')
+        plt.errorbar(ang_freqs, amps, yerr=err_amps, xerr=err_angfreqs,
+                     fmt='.', markersize='3')
+        plt.show()
+        plt.plot(resp_curve[:, -2], np.angle(resp_curve[:, -1]), ':')
+        plt.errorbar(ang_freqs, phases, yerr=err_phases, xerr=err_angfreqs,
+                     fmt='.', markersize='3')
+        plt.show()
         # resp_curve = pd.DataFrame(resp_curve, columns=['b', 'k', 'I', 'b\'',
         #                                               'k\'', 'w_d',
         #                                               'transfer'])
@@ -354,9 +354,8 @@ class MeasuringAccuracy(Experiment):
 # If another frequency present, perhaps filter the signal first?
 
 
-
-# m1 = MeasuringAccuracy()
-# m1.run()
+m1 = MeasuringAccuracy()
+m1.run()
 
 
 def measurement_accuracy(y0, t0, t, i, b_prime, k_prime, b, k, g_0_mags, w_ds,

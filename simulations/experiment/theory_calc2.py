@@ -15,12 +15,10 @@ def calculate_cf_matrix(time, b, k, i):
     :return: Coefficients matrix: [[theta_A, theta_B], [omega_A, omega_B]]."""
     time = h.convert_to_array(time)
     w2, gamma = h.find_w2_gamma(b, k, i)
-    print(w2, gamma)
     if w2 > 0:
         w = np.sqrt(w2)
-        theta_coeffs = np.exp(-gamma * time / 2.) * np.array([np.exp(w * time),
-                                                              np.exp(
-                                                                  -w * time)])
+        theta_coeffs = np.exp(-gamma * time / 2.) * np.array([
+            np.exp(w * time), np.exp(-w * time)])
         omega_coeffs = np.array(
             [(-gamma / 2. + w) * np.exp((-gamma / 2. + w) * time),
              (-gamma / 2. - w) * np.exp((-gamma / 2. - w) * time)])
@@ -108,21 +106,10 @@ def calc_theory_soln(t, t_i, y_i, b, k, i, baked_torque):
 
 def theory_response(b, k, i, b_prime, k_prime, w_d):
     """Gets the transfer function for a sinusoidal input torque. Note that 
-    w_d must be the only array."""
-    denominator = (-i * w_d ** 2 + w_d * (b - b_prime) * 1j + (k - k_prime))
-    valids = np.where(denominator != 0)[0]
-    print(denominator, valids)
-    transfer = np.ones(denominator.shape) * np.Inf
-    transfer[valids] = 1 / denominator[valids]
+    w_d must be the only array. Note: this is NOT the amplitude, rather it is 
+    normalised by the torque amplitude."""
+    denominator = h.convert_to_array(-i * w_d ** 2 + w_d * (b - b_prime) * 1j +
+                                     (k - k_prime))
+    transfer = np.reciprocal(denominator)
+    print(transfer, denominator)
     return transfer
-
-# baked = h.baker(calculate_sine_pi, ["", "", "", "", 1, 0.001, 0],
-#                pos_to_pass_through=(0, 3))
-# results = calc_theory_soln(np.arange(0, 50, 0.01), 0, [0, 0], -1, 5, 1,
-#                           baked)
-# plt.plot(results[:, 0], results[:, 1])
-# plt.show()
-#
-# trans = theory_response(-1, 5, 1, 0, 0, np.arange(0, 140, 1))
-# plt.plot(np.arange(0, 140, 1), np.absolute(trans)**2)
-# plt.show()

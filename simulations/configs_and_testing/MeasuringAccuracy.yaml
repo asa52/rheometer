@@ -4,15 +4,15 @@ theta_0: 0.
 omega_0: 0.
 
 # Time interval
-tfin: 1000
+tfin: 10000
 dt: 0.01
 
 # Constant parameters at a time.
 i_s:  [.00000001]#, .0000001, .000001]
-b_s:  [.000000001]#, .000000005, .00000001, .00000005, .0000001]
-k_s:  [.00000005]#, .000001, .000005]
-b's:   [.000000001]#, .000000005, .00000001, .00000005, .0000001]
-k's:   [.00000005]#, .000001, .000005]
+b_s:  [.00000001]#, .000000005, .00000001, .00000005, .0000001]
+k_s:  [.0000005]#, .000001, .000005]
+b's:  [.000000001]#, .000000005, .00000001, .00000005, .0000001]
+k's:  [.000000005]#, .000001, .000005]
 
 # torque parameters - one at a time.
 g0s: [.0000001]#, .0000005, .000001]
@@ -20,9 +20,10 @@ phis:   [0]
 
 # All values fed into one experiment. Values in radians. Range from 0-20Hz
 # roughly.
-w_d_start:     0.001
+w_d_start:     5.
 w_d_step:      5.
-w_d_final:   140.
+w_d_final:    140.
+#140.
 
 # Test how noise level and frequency affects the measuring functions'
 # accuracy and error. Perhaps modifying these apparatus by adding filtering.

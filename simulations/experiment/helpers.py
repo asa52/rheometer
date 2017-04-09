@@ -48,7 +48,7 @@ def baker(fun, args=None, kwargs=None, pos_to_pass_through=(0, 0)):
     :param fun: The function object without any arguments specified.
     :param args: A list of the positional arguments. Put any placeholder in
     the index that will not be baked into the function.
-    :param kwargs: A list of keyword arguments.
+    :param kwargs: A dictionary of keyword arguments.
     :param pos_to_pass_through: A tuple specifying the index of
     positional arguments for the function 'fun' that will be skipped in
     baking. For example, (1,3) will skip positional arguments 1 through to
@@ -117,7 +117,6 @@ def all_combs(func, *args):
     results = []
     for arg in np.array(np.meshgrid(*args)).T.reshape(-1, len(args)):
         results.append([*arg, func(*arg)])
-
     return results
 
 
@@ -180,16 +179,3 @@ def find_w2_gamma(b, k, i):
     w2 = b ** 2 / (4 * i ** 2) - k / i
     gamma = b / i
     return w2, gamma
-
-
-def make_vars(config_dict, *args):
-    """DANGER!! This function MUST NOT be used for anything other than 
-    setting variables to their string values! It reads config_dict for each 
-    key in args and creates a variable with the same name as the key. For 
-    example, key = config_dict['key'] if args contains 'key'."""
-    variables = []
-    for arg in args:
-        assert type(arg) is str, "Keys must be strings."
-        exec('{} = {}[\'{}\']'.format(arg, config_dict, arg))
-        exec('variables.append({})'.format(arg))
-    return variables

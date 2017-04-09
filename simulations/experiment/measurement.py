@@ -5,16 +5,13 @@ import pyfftw
 import scipy.signal as sg
 
 import simulations.experiment.helpers as h
-import matplotlib.pyplot as plt
 
 
 def calc_fft(x_axis, y_axis):
     """Calculate the FFT of y over domain x."""
-
     n = y_axis.shape[-1]  # length of the signal
     # Get frequencies, normalise by sampling rate and shift to be centred at 0.
     freqs = np.fft.fftshift(np.fft.fftfreq(n)) / (x_axis[1] - x_axis[0])
-
     # calculate FFT using FFTW module. Then, shift and normalise.
     fft = pyfftw.builders.fft(y_axis, overwrite_input=False,
                               planner_effort='FFTW_ESTIMATE',
@@ -120,6 +117,7 @@ def peak_detect(y_values, n_maxima):
         peaks.append([index, y_values[index]])
 
     peaks = np.array(peaks)
+    n_maxima = int(n_maxima)
     if n_maxima is not None:
         ind = np.argpartition(peaks[:, 1], -n_maxima)[-n_maxima:]
         peaks = peaks[ind, :]
@@ -156,23 +154,29 @@ def calc_freqs(full_fft_y, freqs, n_peaks=1):
     max_peaks = peak_detect(full_fft_y, n_peaks * 2)
 
     # We always expect the spectrum to be symmetric as the signal is real. So
-    #  there will be an even number of peaks.
+    # there will be an even number of peaks.
     peak_pos = get_peak_pos(max_peaks, freqs, full_fft_y)
     len_array = len(peak_pos[0, :])
-    assert len_array % 2 == 0, "Odd number of peaks - input signal is not real!"
+    assert len_array % 2 == 0 or len_array == 1, \
+        "Odd number of peaks that is not 1 - input signal is not real or has " \
+        "multiple frequencies."
 
     # Rearrange the array into a form that can be used to average over the
     # positive and negative frequencies in the spectrum.
-    num_freqs = int(len_array / 2)
-    average_over = np.absolute(np.array([peak_pos[:, :num_freqs],
-                                         np.flip(peak_pos[:, num_freqs:], 1)]))
-    return h.combine_quantities(np.absolute(average_over[:, 0, :]),
-                                average_over[:, 1, :], operation='mean', axis=0)
+    num_freqs = int(len_array / 2) if len_array != 1 else 1
+    if len_array > 1:
+        average_over = np.absolute(np.array([
+            peak_pos[:, :num_freqs], np.flip(peak_pos[:, num_freqs:], 1)]))
+        return h.combine_quantities(
+            np.absolute(average_over[:, 0, :]), average_over[:, 1, :],
+            operation='mean', axis=0)
+    else:
+        return peak_pos.squeeze()
 
 
 def calc_phase(real_resp, real_force):
     """Calculate the phase difference in radians between the displacement and 
-    the torque using a Hilbert transform. Signal MUST by monochromatic, 
+    the torque using a Hilbert transform. Signal MUST be monochromatic, 
     so filter first if necessary.
     :param real_resp: The displacement, as an array.
     :param real_force: The analytic torque, as an array."""
