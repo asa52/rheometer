@@ -1,138 +1,17 @@
 """High-level functions to perform experiments on the system and collect a 
-set of data, which can then be stored in a file. Maybe define a general 
-experiment class here?"""
+set of data, which can then be stored in a file."""
 
 import os
 import time
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
 
-# from simulations.experiment import conditional_pend as c
-from simulations.experiment import plotter as p
-from simulations.experiment import helpers as h
-from simulations.experiment import theory as t
-from simulations.experiment import measurement as m
-from simulations.configs_and_testing import testing as test
-
-
-def exp_vs_theory(y0, t0, i, b_prime, omega_sim, k_prime, theta_sim, b, k,
-                  g_0_mags, w_ds, phases, t_fin, dt, create_plot=False):
-    """Compare experiment to theory for one set of parameters and return the 
-    difference between the two. Uses only the analytic torque expression."""
-    exp_results = c.ode_integrator(y0, t0, i, b_prime, omega_sim, k_prime,
-                                   theta_sim, b, k, g_0_mags, w_ds, phases,
-                                   t_fin, dt, c.analytic_torque)
-
-    # Theoretical calculation.
-    sines_torque = h.baker(
-        t.calculate_sine_pi, ["", "", "", "", g_0_mags, w_ds, phases],
-        pos_to_pass_through=(0, 3))
-    theory = t.calc_theory_soln(exp_results[:, 0], t0, y0, b - b_prime,
-                                k - k_prime, i, sines_torque)
-
-    # Normalise error by amplitude
-    max_theta_diff = np.max(np.abs(exp_results[:, 1] - theory[:, 1]))
-    max_omega_diff = np.max(np.abs(exp_results[:, 2] - theory[:, 2]))
-    normalised_theta_diff = (exp_results[:, 1] - theory[:, 1])/np.max(
-        exp_results[:, 1])
-    normalised_omega_diff = (exp_results[:, 2] - theory[:, 2])/np.max(
-        exp_results[:, 2])
-    max_theta_norm = np.max(np.abs(normalised_theta_diff))
-    max_omega_norm = np.max(np.abs(normalised_omega_diff))
-
-    # Plotting - for 4 subplots on 1 figure.
-    if create_plot:
-        plt.figure(figsize=(7, 10))
-        ax1 = plt.subplot(413)
-        plt.plot(exp_results[:, 0], normalised_theta_diff, 'k',
-                 label=r'$\theta$')
-        plt.setp(ax1.get_xticklabels(), visible=False)
-        plt.grid()
-        plt.ylabel(r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$', fontsize=14,
-                   fontweight='bold')
-
-        # share x only
-        ax2 = plt.subplot(411, sharex=ax1)
-        plt.plot(exp_results[:, 0], exp_results[:, 1], 'r-.',
-                 label=r'Simulated')
-        plt.plot(theory[:, 0], theory[:, 1], 'b:', label=r'Analytic')
-        plt.setp(ax2.get_xticklabels(), visible=False)
-        plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4), ncol=2)
-        plt.xlim([t0, t_fin])
-        plt.ylabel(r'$\theta$/rad', fontsize=14, fontweight='bold')
-        plt.grid()
-
-        ax3 = plt.subplot(414, sharex=ax1)
-        plt.plot(exp_results[:, 0], normalised_omega_diff, 'k',
-                 label=r'$\omega$')
-        plt.setp(ax1.get_xticklabels())
-        plt.xlabel('t/s', fontsize=14, fontweight='bold')
-        plt.ylabel(r'$(\omega_{sim}-\omega_{an})/|\omega_{max}|$',
-                   fontsize=14, fontweight='bold')
-        plt.grid()
-
-        ax4 = plt.subplot(412, sharex=ax1)
-        plt.plot(exp_results[:, 0], exp_results[:, 2], 'r-.',
-                 label=r'$\omega_{exp}$')
-        plt.plot(exp_results[:, 0], theory[:, 2], 'b:',
-                 label=r'$\omega_{theory}$')
-        plt.setp(ax4.get_xticklabels(), visible=False)
-        plt.xlim([t0, t_fin])
-        plt.ylabel('$\omega$/rad/s', fontsize=14, fontweight='bold')
-        plt.ticklabel_format(useOffset=False)
-        plt.grid()
-        plt.show()
-
-    return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
-
-
-def exp_vs_an_parameters():
-    start_time = time.time()
-
-    # Define the initial and setup conditions.
-    config_dict = h.yaml_read('config.yaml')
-    t0 = config_dict['t0']
-    t_fin = config_dict['t_fin']
-    dt = config_dict['dt']
-    b_prime = config_dict['b_prime']
-    k_prime = config_dict['k_prime']
-    theta_sim = config_dict['theta_sim']
-    omega_sim = config_dict['omega_sim']
-    theta_0s = config_dict['theta_0s']
-    omega_0s = config_dict['omega_0s']
-    i_s = config_dict['i_s']
-    bs = config_dict['bs']
-    ks = config_dict['ks']
-    g_0_mags = config_dict['g_0_mags']
-    w_ds = config_dict['w_ds']
-    phases = config_dict['phases']
-
-    max_norm_errs = []
-    for g_0_mag in g_0_mags:
-        for w_d in np.nditer(w_ds):
-            for phase in phases:
-                for theta_0 in np.nditer(theta_0s):
-                    for omega_0 in np.nditer(omega_0s):
-                        for i in i_s:
-                            for b in bs:
-                                for k in ks:
-                                    # todo change t0, i, etc. to 0th indices.
-                                    err = exp_vs_theory(
-                                        [theta_0, omega_0], t0, i, b_prime,
-                                        omega_sim, k_prime, theta_sim, b, k,
-                                        [g_0_mag, 0], [w_d, 0], [phase, 0],
-                                        t_fin, dt)
-                                    max_norm_errs.append(
-                                        [t0, t_fin, dt, theta_0,
-                                         omega_0, i, b, k, g_0_mag, w_d, phase,
-                                         k_prime, theta_sim, b_prime,
-                                         omega_sim, *err])
-    max_norm_errs = np.array(max_norm_errs)
-    np.savetxt('testing-sim-wo-norm-res.txt', max_norm_errs)
-    runtime = time.time() - start_time
-    print("runtime", runtime)
-    return
+import helpers as h
+import testing as test
+import measurement as m
+import conditional_pend as c
+import plotter as p
+import theory as t
 
 
 class Experiment:
@@ -141,17 +20,17 @@ class Experiment:
 
     def __init__(self, config=None, filename=None, description=None):
         # Set initial conditions. Create output file with the given name.
-        # Read config parameters from a YAML file. Create a timer but don't
-        # start. Description describes the aim of experiment.
+        # Read config parameters from a YAML file or feed in dictionary
+        # directly. Create a timer but don't start. Description describes the
+        # aim of experiment.
         if filename is None:
-            self.filename = str(self.__class__.__name__) + '-'
+            self.filename_root = str(self.__class__.__name__) + '-'
         if config is None:
-            self.config = self.filename[:-1] + '.yaml'
+            self.config = self.filename_root[:-1] + '.yaml'
         if description is None:
             self.description = self.__class__.__doc__
 
-        self.string_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.gmtime())
-        self.filename += self.string_time
+        self._update_filename()
         self.timer = test.CodeTimer()
         self.log_text = ''
 
@@ -159,17 +38,29 @@ class Experiment:
         self.savepath = '../../../Tests/ExperimentClasses/{}/'.format(
             self.__class__.__name__)
         self.logpath = self.savepath + 'logs/'
-        self.config_path = '../configs_and_testing/'
+        self.plotpath = self.savepath + 'plots/'
+        self.config_path = '../configs/'
         if not os.path.exists(self.logpath):
             os.makedirs(self.logpath)
-        self.prms = h.yaml_read(self.config_path + self.config)
+        if not os.path.exists(self.plotpath):
+            os.makedirs(self.plotpath)
+        if type(config) is not dict:
+            self.prms = h.yaml_read(self.config_path + self.config)
+        else:
+            self.prms = config
 
-    def run(self, tags=False, save=True):
+    def _update_filename(self):
+        """Get an updated filename with the most recent time, allowing 
+        multiple files to be saved by the class."""
+        self.string_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.gmtime())
+        self.filename = self.filename_root + self.string_time
+
+    def run(self, tags=False, savedata=True):
         """Run the experiment and get a set of results. Save at the end if 
         specified. Start timer and log runtime always, in a separate logging 
         file. If not auto_save, ask for comments before saving. Save the 
         range of parameters run for at the top in summarised form. The dict 
-        of dataframes from main_operation is saved in a separate file each."""
+        of data frames from main_operation is saved in a separate file each."""
 
         self.timer.start_timer()
         results = self.main_operation()
@@ -193,7 +84,7 @@ class Experiment:
             np.savetxt(log, timings, fmt='%s')
         print('Log file saved to {}.'.format(self.filename + '-log.txt'))
 
-        if save:
+        if savedata:
             for dataframe in results:
                 results[dataframe].to_csv('{}'.format(self.savepath +
                                                       self.filename +
@@ -214,6 +105,10 @@ class Experiment:
         only be used during a main_operation function."""
         time_now = self.timer.checkpoint(checkp_name=message)[0]
         self.log_text += '{}\t{}\t{}\n'.format(time_now, log_type, message)
+
+    def __del__(self):
+        """Deletes the timer object when the experiment is being deleted."""
+        del self.timer
 
 
 class MeasuringAccuracy(Experiment):
@@ -236,11 +131,24 @@ class MeasuringAccuracy(Experiment):
             "", "", "", "", g_0_mag, w_d, phase], pos_to_pass_through=(0, 3))
         theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i,
                                     pi_contr)
+        w_res = np.sqrt(-h.find_w2_gamma(b - b_prime, k - k_prime, i)[0])
         self._log('after nyquist check')
-        if b - b_prime > 0:
+        if b - b_prime >= 0:
+            if b - b_prime == 0 and np.isreal(w_res):
+                # filter out the transient frequency.
+                theory[:, 1] = m.remove_one_frequency(times, theory[:, 1],
+                                                      w_res)
+                theory[:, 2] = m.remove_one_frequency(times, theory[:, 2],
+                                                      w_res)
+
             # Will only reach steady state if this is the case, otherwise no
-            # point making a response curve. Measure one point.
+            # point making a response curve. Measure one point. b - b' = 0
+            # has two steady state frequencies, the transient and PI.
             ss_times = m.identify_ss(times, theory[:, 1])
+            # TODO change the tolerance. Also note that when the window is
+            # comparable to the period, the correlation changes significantly
+            # as you move across. Consider adjusting the window size when
+            # this occurs.
             self._log('before fft')
             frq, fft_theta = m.calc_fft(
                 times[(times >= ss_times[0]) * (times <= ss_times[1])],
@@ -290,7 +198,7 @@ class MeasuringAccuracy(Experiment):
             w_res = np.sqrt(-w2)
         else:
             w_res = 0
-        w_range = np.linspace(w_res - width, w_res + width, 20)
+        w_range = np.linspace(w_res - width, w_res + width, 100)
         single_run = h.baker(self._single_operation,
                              [times, '', '', '', '', '', '', '', '', '', t0,
                               y0], pos_to_pass_through=(1, 9))
@@ -300,6 +208,7 @@ class MeasuringAccuracy(Experiment):
         for j in range(len(ws)):
             all_times = h.all_combs(single_run, b_s, k_s, i_s, b_primes,
                                     k_primes, ws[j], g_0_mags, phases, 1)
+
             self._log('after all combs run')
             # final argument 1/2 for 1 frequency peak expected.
             fft_data = []
@@ -310,95 +219,175 @@ class MeasuringAccuracy(Experiment):
                     fft_data.append(all_times[i][-1][-1])
             if j == 0:
                 fft_mmts = np.array(fft_data)
-                # Get the theoretical response curves. Note that w_d is the only
+
+                # Get the theoretical response curves. Note that w is the only
                 # array.
-                fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s,
-                                                  i_s, b_primes, k_primes,
-                                                  ws[j]))
+                #fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s,
+                #                                  i_s, b_primes, k_primes,
+                #                                  ws[j]))
+
             else:
                 fft_mmts = np.append(fft_mmts, np.array(fft_data), axis=0)
                 fft_mmts = fft_mmts[fft_mmts[:, 0, 0].argsort()]
-                fft_theory = np.append(fft_theory, np.array(h.all_combs(
-                    t.theory_response, b_s, k_s, i_s, b_primes, k_primes,
-                    ws[j])), axis=0)
-                fft_theory = fft_theory[fft_theory[:, -2].argsort()]
+
+                #fft_theory = np.append(fft_theory, np.array(h.all_combs(
+                #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes,
+                #    ws[j])), axis=0)
+                #fft_theory = fft_theory[fft_theory[:, -2].argsort()]
+
             self._log('after fft setup')
         ang_freqs = np.array([fft_mmts[:, 0, 0],
                               fft_mmts[:, 0, 1]]).T * 2 * np.pi
         amps = np.array([fft_mmts[:, 1, 0], fft_mmts[:, 1, 1]]).T / g_0_mags
         phases = np.array([fft_mmts[:, 2, 0], fft_mmts[:, 2, 1]]).T
 
+        # For a single set of data, get the transfer function once only. This
+        # allows error to be calculated as specifically the experimental
+        # ang_freqs are used.
+        fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s, i_s,
+                                          b_primes, k_primes, ang_freqs[:, 0]))
+
+        theory_amps = np.absolute(fft_theory[:, -1])
+        theory_phases = np.angle(fft_theory[:, -1])
+        amp_err, phase_err = h.calc_norm_errs([amps[:, 0], theory_amps],
+                                              [phases[:, 0], theory_phases])[0]
+
         theory_n_mmt = \
-            [
+            [[[[ang_freqs, theory_amps], [ang_freqs, amps]],
+              [[ang_freqs, amp_err]]],
+             [[[ang_freqs, theory_phases], [ang_freqs, phases]],
+              [[ang_freqs, phase_err]]]]
+        self._log('before plot')
+
+        p.two_by_n_plotter(
+            theory_n_mmt, self.filename, self.prms, savepath=self.plotpath,
+            show=False, x_axes_labels=['$\omega$/rad/s', '$\omega$/rad/s'],
+            y_top_labels=[r'$\left|\frac{\theta(\omega)}{G('
+                          r'\omega)}\right|$/rad/(Nm)',
+                          r'$\phi(\frac{\theta(\omega)}{G(\omega)})$/rad'],
+            y_bottom_labels=[r'Fractional error in $\left|\frac{\theta('
+                             r'\omega)}{G(\omega)}\right|$',
+                             r'Fractional error in $\phi$'])
+        self._log('after plot')
+
+    def run(self, tags=None, savedata=False):
+        # Don't save data.
+        super(MeasuringAccuracy, self).run(tags=tags, savedata=savedata)
+
+
+class TheoryVsSimulation(Experiment):
+    """Experiment to compare the analytical theory solution to the simulated 
+    one without NR, to determine the maximum error of the simulated system."""
+
+    def __init__(self):
+        super(TheoryVsSimulation, self).__init__()
+
+    def main_operation(self):
+        # Define the initial and setup conditions.
+        t0 = self.prms['t0']
+        t_fin = self.prms['t_fin']
+        dt = self.prms['dt']
+        b_prime = self.prms['b_prime']
+        k_prime = self.prms['k_prime']
+        theta_sim = self.prms['theta_sim']
+        omega_sim = self.prms['omega_sim']
+        theta_0s = self.prms['theta_0s']
+        omega_0s = self.prms['omega_0s']
+        i_s = self.prms['i_s']
+        bs = self.prms['bs']
+        ks = self.prms['ks']
+        g_0_mags = self.prms['g_0_mags']
+        w_ds = self.prms['w_ds']
+        phases = self.prms['phases']
+
+        max_errs = h.all_combs(self._one_run, theta_0s, omega_0s, t0, i_s,
+                               b_prime, omega_sim, k_prime, theta_sim, bs, ks,
+                               g_0_mags, w_ds, phases, t_fin, dt,
+                               deconstruct=True)
+        max_errs = pd.DataFrame(data=max_errs, columns=[
+            'theta_0', 'omega_0', 't0', 'i', 'b\'', 'omega_sim', 'k\'',
+            'theta_sim', 'b', 'k', 'g_0_mag', 'w_d', 'phase', 't_fin', 'dt',
+            'max_theta_diff', 'max_omega_diff', 'max_theta_norm',
+            'max_omega_norm'])
+        return {'max_errs': max_errs}
+
+    def _one_run(self, theta_0, omega_0, t0, i, b_prime, omega_sim, k_prime,
+                 theta_sim, b, k, g_0_mag, w_d, phase, t_fin, dt,
+                 create_plot=True):
+        """Compare experiment to theory for one set of parameters and return the 
+        difference between the two. Uses only the analytic torque expression."""
+        y0 = [theta_0, omega_0]
+        exp_results = c.ode_integrator(y0, t0, i, b_prime, omega_sim, k_prime,
+                                       theta_sim, b, k, g_0_mag, w_d, phase,
+                                       t_fin, dt, c.analytic_torque)
+
+        # Theoretical calculation.
+        sines_torque = h.baker(
+            t.calculate_sine_pi, ["", "", "", "", g_0_mag, w_d, phase],
+            pos_to_pass_through=(0, 3))
+        theory = t.calc_theory_soln(exp_results[:, 0], t0, y0, b - b_prime,
+                                    k - k_prime, i, sines_torque)
+
+        # Normalise error by amplitude
+        max_theta_diff = np.max(np.abs(exp_results[:, 1] - theory[:, 1]))
+        max_omega_diff = np.max(np.abs(exp_results[:, 2] - theory[:, 2]))
+        norm_theta_diff = (exp_results[:, 1] - theory[:, 1]) / np.max(
+            exp_results[:, 1])
+        norm_omega_diff = (exp_results[:, 2] - theory[:, 2]) / np.max(
+            exp_results[:, 2])
+        max_theta_norm = np.max(np.abs(norm_theta_diff))
+        max_omega_norm = np.max(np.abs(norm_omega_diff))
+
+        # Plotting - for 4 subplots on 1 figure.
+        if create_plot:
+            self._update_filename()
+            plotting_data = \
                 [
                     [
-                        [fft_theory[:, -2], np.absolute(fft_theory[:, -1])],
-                        [ang_freqs, amps]
+                        [[exp_results[:, 0], exp_results[:, 1], r'Simulated'],
+                         [theory[:, 0],      theory[:, 1],      r'Analytic']],
+                        [[exp_results[:, 0], norm_theta_diff]],
                     ],
                     [
-                        [fft_theory[:, -2], np.angle(fft_theory[:, -1])],
-                        [ang_freqs, phases]
+                        [[exp_results[:, 0], exp_results[:, 2], r'Simulated'],
+                         [theory[:, 0],      theory[:, 2],      r'Analytic']],
+                        [[exp_results[:, 0], norm_omega_diff]],
                     ]
                 ]
-            ]
-        self._log('before plot')
-        p.two_by_n_plotter(theory_n_mmt, x_axes_labels=['$\omega$/rad/s'],
-                           y_top_labels=[r'$\left|\frac{\theta(\omega)}{G('
-                                         r'\omega)}\right|$'],
-                           y_bottom_labels=[r'arg$(\frac{\theta(\omega)}{G('
-                                            r'\omega)})$'])
-        self._log('after plot')
-        #fft_theory = pd.DataFrame(fft_theory, columns=['b', 'k', 'I', 'b\'',
-        #                                               'k\'', 'w_d',
-        #                                               'transfer'])
-        #resp_curve2 = pd.DataFrame(np.array(h.all_combs(
-        #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes, w_range)),
-        #     columns=['b', 'k', 'I', 'b\'', 'k\'', 'w_d', 'transfer'])
-        #resp_curve2 = resp_curve2.append(resp_curve2).sort_values('w_d')
-        #return super(MeasuringAccuracy, self).main_operation()
+            params = {'theta_0': theta_0, 'omega_0': omega_0, 't0': t0, 'I': i,
+                      'b\'': b_prime, 'omega_sim': omega_sim, 'k\'': k_prime,
+                      'theta_sim': theta_sim, 'b': b, 'k': k,
+                      'g_0_mag': g_0_mag, 'w_d': w_d, 'phi': phase,
+                      't_fin': t_fin, 'dt': dt}
+            p.two_by_n_plotter(
+                plotting_data, self.filename, params, savepath=self.plotpath,
+                show=False, x_axes_labels=['t/s', 't/s'],
+                y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
+                y_bottom_labels=[r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$',
+                                 r'$(\dot{\theta}_{sim}-\dot{\theta}_{an})/'
+                                 r'|\dot{\theta}_{max}|$'],
+                legend={'loc': 'upper center', 'bbox_to_anchor': (0.5, 1.4),
+                        'ncol': 2})
+
+        return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
 
 
-# plot time domain displacement and velocity using theory and check it
-# agrees with analytic forms once in each of 3 types of transients
-# and b - b', k - k' <, =, > 0.
+class NRRegimes(Experiment):
+    """Tests the theoretical against the ODE integrator function in the time 
+    domain for one set of control parameters, allowing for variable noise and 
+    delays to be introduced at any stage."""
 
-# For each value of b - b', k - k' and other parameters varied,
-# plot the expected response curve against the actual, which is
-# obtained by using the measurement functions and varying the driving
-# frequency.
+    def __init__(self):
+        super(NRRegimes, self).__init__()
+        # Set the parameters in the Arduino script.
 
+    def main_operation(self):
+        """Link up the Arduino script to control all the right parameters."""
+        pass
 
-# Nyquist sampling error! Be aware of this! Both freq and amplitude can
-# be wrongly measured as a result! Digitisation error also. Also set the
-# first_is_peak parameter if first signal in the amplitude can be the
-# peak (true usually only for noiseless signals).
-# If another frequency present, perhaps filter the signal first?
-
-
-m1 = MeasuringAccuracy()
-m1.run()
-
-
-def measurement_accuracy(y0, t0, t, i, b_prime, k_prime, b, k, g_0_mags, w_ds,
-                         phases, create_plot=False):
-    """Compare the accuracy of the measurement functions and their error when a 
-    noiseless, 'perfect' signal is measured and also compared to the 
-    theoretically expected graph."""
-
-    # Want to get set of measurements for a good range of k, b, i near the
-    # experiment ones, and all 3 types of transients. Get the response curve
-    # for each of these cases (over the frequency range 0 - 30 Hz only,
-    # as this is the range to be tested). Also see what happens when b -
-    # b_prime is negative, and k - k_prime. Check how measurements fare here.
-    # Trivially, also try a case for varying the input torque amplitude and
-    # phase to check that this does not have a significant effect.
-
-    # Theoretical calculation.
-    sines_torque = h.baker(
-        t.calculate_sine_pi, ["", "", "", "", g_0_mags, w_ds, phases],
-        pos_to_pass_through=(0, 3))
-    theory = t.calc_theory_soln(t, t0, y0, b - b_prime, k - k_prime, i,
-                                sines_torque)
-
-# if __name__ == '__main__':
-#    exp_vs_an_parameters()
+if __name__ == '__main__':
+    #initial_setup = h.yaml_read('../configs/MeasuringAccuracy.yaml')
+    #m1 = MeasuringAccuracy(config=initial_setup)
+    #m1.run()
+    t1 = TheoryVsSimulation()
+    t1.run()

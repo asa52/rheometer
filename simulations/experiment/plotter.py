@@ -3,11 +3,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import simulations.experiment.helpers as h
+import helpers as h
 
 
-def two_by_n_plotter(datasets, x_axes_labels=None, y_top_labels=None,
-                     y_bottom_labels=None):
+def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
+                     tag=None, x_axes_labels=None, y_top_labels=None,
+                     y_bottom_labels=None, **kwargs):
     """Plots a 2 x N series of subplots in a single figure. The format for 
     datasets is:
         [
@@ -20,12 +21,22 @@ def two_by_n_plotter(datasets, x_axes_labels=None, y_top_labels=None,
     x1, y1 is one data series, plotted in either the top or bottom plot of 
     set n of N. Error bars may be allowed by making x or y a 2-column array, 
     with the second column specifying the errors. The x axes of the top and 
-    bottom plot are shared in each pair.
+    bottom plot are shared in each pair. A third entry in [x1, y1, label] is 
+    a string specifying the label of the data series, if one is desired for a 
+    legend.
     The axes labels are lists with the appropriate string labels. Axes are 
-    labelled from left to right in the figure."""
+    labelled from left to right in the figure.
+    params_dict specifies the parameters to be written to the text file 
+    accompanying the plot, to record the control variables.
+    kwargs is a list of custom commands to be passed to the plot, such as 
+    legend formats, just before plotting. They are called as methods of the 
+    figure object. The 'legend' parameter takes a dictionary of keyword 
+    arguments as its value; these are passed into the fig.legend method, 
+    for example."""
 
     # create subplots figure
-    fig, ax = plt.subplots(ncols=len(datasets), nrows=2, sharex='col')
+    fig, ax = plt.subplots(ncols=len(datasets), nrows=2, sharex='col',
+                           figsize=(21, 10.5))
     x_axis, y_axis_top, y_axis_bottom = False, False, False
     if x_axes_labels is not None:
         x_axis = True
@@ -41,7 +52,12 @@ def two_by_n_plotter(datasets, x_axes_labels=None, y_top_labels=None,
     for k in range(len(datasets)):
         for j in range(len(datasets[k])):
             for one_series in datasets[k][j]:
-                axes = h.check_types_lengths(*one_series)
+                axes = h.check_types_lengths(*one_series[0:2])
+                if type(one_series[-1]) is str:
+                    # Data label used for the final entry.
+                    label = one_series[-1]
+                else:
+                    label = None
                 for i in range(len(axes)):
                     if not (axes[i].ndim == 2 and axes[i].shape[-1] == 2):
                         # Data has no error bars - create error bars of zero.
@@ -51,112 +67,57 @@ def two_by_n_plotter(datasets, x_axes_labels=None, y_top_labels=None,
                     axis = ax[j]
                 else:
                     axis = ax[j, k]
-                axis.errorbar(axes[0][:, 0], axes[1][:, 0],
-                              xerr=axes[0][:, 1], yerr=axes[1][:, 1], fmt=':')
-                #axis.set_xlim(min(axes[0][:, 0]), max(axes[0][:, 0]))
-                #axis.set_ylim(min(axes[1][:, 0]), max(axes[1][:, 0]))
-                axis.tick_params(direction='out', labelsize=12)
+                axis.errorbar(axes[0][:, 0], axes[1][:, 0], xerr=axes[0][:, 1],
+                              yerr=axes[1][:, 1], fmt=':', alpha=0.7,
+                              label=label)
+                axis.tick_params(direction='out')
                 axis.grid(True)
                 if x_axis:
                     if x_axes_labels[k] is not None and j == 1:
-                        axis.set_xlabel(x_axes_labels[k], fontsize=14,
-                                        fontweight='bold', )
+                        axis.set_xlabel(x_axes_labels[k], fontweight='bold',
+                                        fontsize=13)
                 if j == 0:
                     if y_axis_top:
                         if y_top_labels[k] is not None:
-                            axis.set_ylabel(y_top_labels[k], fontsize=14,
-                                            fontweight='bold', labelpad=-5)
+                            axis.set_ylabel(y_top_labels[k], fontweight='bold',
+                                            fontsize=13)
                 elif j == 1:
                     if y_axis_bottom:
                         if y_bottom_labels[k] is not None:
-                            axis.set_ylabel(y_bottom_labels[k], fontsize=14,
-                                            fontweight='bold', labelpad=-5)
+                            axis.set_ylabel(y_bottom_labels[k],
+                                            fontweight='bold', fontsize=13)
                 axis.ticklabel_format(useOffset=False)
-    plt.show()
-    #plt.figure(figsize=(7, 10))
-    #ax1 = plt.subplot(413)
-    #plt.plot(exp_results[:, 0], normalised_theta_diff, 'k',
-    #         label=r'$\theta$')
-    #plt.setp(ax1.get_xticklabels(), visible=False)
-    #plt.grid()
-    #plt.ylabel(r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$', fontsize=14,
-    #           fontweight='bold')#
 
-    # share x only
-    #ax2 = plt.subplot(411, sharex=ax1)
-    #plt.plot(exp_results[:, 0], exp_results[:, 1], 'r-.',
-    #         label=r'Simulated')
-    #plt.plot(theory[:, 0], theory[:, 1], 'b:', label=r'Analytic')
-    #plt.setp(ax2.get_xticklabels(), visible=False)
-    #plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4), ncol=2)
-    #plt.xlim([t0, t_fin])
-    #plt.ylabel(r'$\theta$/rad', fontsize=14, fontweight='bold')
-    #plt.grid()
+                if 'legend' in kwargs:
+                    legend_params = kwargs['legend']
+                    axis.legend(**legend_params)
 
-    #ax3 = plt.subplot(414, sharex=ax1)
-    #plt.plot(exp_results[:, 0], normalised_omega_diff, 'k',
-    #         label=r'$\omega$')
-    #plt.setp(ax1.get_xticklabels())
-    #plt.xlabel('t/s', fontsize=14, fontweight='bold')
-    #plt.ylabel(r'$(\omega_{sim}-\omega_{an})/|\omega_{max}|$',
-     #          fontsize=14, fontweight='bold')
-    #plt.grid()
+    plot_name, descrip_name = plot_n_params(start, tag)
+    if savepath is not None:
+        # Save only if save path is not none.
+        fig.savefig(savepath + plot_name, dpi=600)
+        with open(savepath + descrip_name, 'w') as f:
+            for key in params_dict:
+                if type(params_dict[key]) is np.ndarray:
+                    f.write('{}: {}\r\n'.format(key, np.asscalar(params_dict[
+                                                                    key])))
+                else:
+                    f.write('{}: {}\r\n'.format(key, params_dict[key]))
+    if show:
+        fig_manager = plt.get_current_fig_manager()
+        fig_manager.window.showMaximized()
+        plt.show()
+    plt.close(fig)
+    return
 
-    #ax4 = plt.subplot(412, sharex=ax1)
-    #plt.plot(exp_results[:, 0], exp_results[:, 2], 'r-.',
-    #         label=r'$\omega_{exp}$')
-    #plt.plot(exp_results[:, 0], theory[:, 2], 'b:',
-    #         label=r'$\omega_{theory}$')
-    #plt.setp(ax4.get_xticklabels(), visible=False)
-    #plt.xlim([t0, t_fin])
-    #plt.ylabel('$\omega$/rad/s', fontsize=14, fontweight='bold')
-    #plt.ticklabel_format(useOffset=False)
-    #plt.grid()
-    #plt.show()
 
-if __name__ == '__main__':
-    t = np.linspace(0.001, 10, 10000)
-    thing = [
-                [
-                    [
-                        [t, np.sin(t)],
-                        [t, np.cos(t)]
-                    ],
-                    [
-                        [t, np.exp(-t)],
-                        [t, np.tanh(t)]
-                    ],
-                ],
-        [
-            [
-                [t, np.sin(t)],
-                [t, np.cos(t)]
-            ],
-            [
-                [t, np.log(t)],
-                [t, np.log10(t)]
-            ],
-        ],
-        [
-            [
-                [t, np.sin(t)],
-                [t, np.cos(t)]
-            ],
-            [
-                [t, np.log(t)],
-                [t, np.log10(t)]
-            ],
-        ],
-        [
-            [
-                [t, np.sin(t)],
-                [t, np.cos(t)]
-            ],
-            [
-                [t, np.log(t)],
-                [t, np.log10(t)]
-            ],
-        ],
-    ]
-    two_by_n_plotter(thing, x_axes_labels=['t', 't', 't', 't'],
-                     y_top_labels=[1, 2, 3, 4], y_bottom_labels=[1, 2, 3, 4])
+def plot_n_params(start, tag=None, filetype='pdf'):
+    """Create the plot file name according to the format: 
+    start-tags-format. All arguments are strings apart from kwargs 
+    which is a dictionary of control parameters."""
+    plot_name = start + '-'
+    if tag is not None:
+        plot_name += '-' + tag
+    descrip_name = plot_name + '.txt'
+    plot_name += '.' + filetype
+    return plot_name, descrip_name

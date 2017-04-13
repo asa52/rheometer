@@ -3,8 +3,9 @@
 import numpy as np
 import pyfftw
 import scipy.signal as sg
+import matplotlib.pyplot as plt
 
-import simulations.experiment.helpers as h
+import helpers as h
 
 
 def calc_fft(x_axis, y_axis):
@@ -184,7 +185,6 @@ def calc_phase(real_resp, real_force):
     # Make sure y and torque are complex and not absolute-valued.
     hil_y = sg.hilbert(real_resp)
     hil_torque = sg.hilbert(real_force)
-
     phases = np.angle(hil_y / hil_torque)  # also calculate average and error.
     return h.combine_quantities(phases, operation='mean')
 
@@ -229,19 +229,40 @@ def _norm_correlations(x_axis, y_axis, n_per_segment):
                 correlations.append(0)
     return xs, np.array(correlations).squeeze()
 
-# if __name__ == '__main__':
-#    t = np.linspace(0, 1000, 100000)
-    # Nyquist sampling error! Be aware of this! Both freq and amplitude can
-    # be wrongly measured as a result! Digitisation error also. Also set the
-    # first_is_peak parameter if first signal in the amplitude can be the
-    # peak (true usually only for noiseless signals).
-#    y = np.sin(5 * t + np.pi / 3) + np.cos(5 * t - np.pi / 4)
-#    torque = np.sin(5 * t)
-    # If another frequency present, perhaps filter the signal first?
-#    ss_times = identify_ss(t, y)
-#    frq, full_Y = calc_fft(t[(t >= ss_times[0]) * (t <= ss_times[1])],
-#                           y[(t >= ss_times[0]) * (t <= ss_times[1])])
-    # Half-power used to calculate bandwidth.
-#    print(calc_freqs(np.absolute(full_Y) ** 2, frq))
-#    print(calc_one_amplitude(y[(t >= ss_times[0]) * (t <= ss_times[1])]))
-#    print(calc_phase(y, torque))
+
+def remove_one_frequency(times, theta, w_remove):
+    """Remove one frequency from the real space signal.
+    :param times: Time array
+    :param theta: Theta array
+    :param w_remove: Remove this angular frequency.
+    :return: The theta array with the frequency in question filtered out."""
+
+    n = theta.shape[-1]
+    frq, fft_theta = calc_fft(times, theta)
+    f_remove = w_remove / (2*np.pi)
+    frq_res = frq[1] - frq[0]
+
+    # Filter
+    neg = np.logical_and(-10 * frq_res - f_remove <= frq,
+                         frq <= 10 * frq_res - f_remove)
+    pos = np.logical_and(-10 * frq_res + f_remove <= frq,
+                         frq <= 10 * frq_res + f_remove)
+    remove = np.where(np.logical_or(neg, pos))
+    fft_theta[remove] = 0
+
+    # Calculate IFFT using FFTW module. Shift and normalise.
+    ifft = pyfftw.builders.ifft(
+        np.fft.ifftshift(fft_theta) * n / 2., overwrite_input=False,
+        planner_effort='FFTW_ESTIMATE', threads=2, auto_align_input=False,
+        auto_contiguous=False, avoid_copy=True)
+    return ifft()
+
+
+if __name__ == '__main__':
+    t = np.linspace(0, 1000, 10000)
+    amp = np.sin(t) + np.sin(2 * t)
+    plt.plot(t, amp)
+    plt.show()
+    filtered_amps = remove_one_frequency(t, amp, 1)
+    plt.plot(t, np.real(filtered_amps), t, np.imag(filtered_amps))
+    plt.show()

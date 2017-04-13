@@ -2,7 +2,7 @@
 # Time interval
 t0:               0
 t_fin:           10
-dt:   0.001
+dt:           0.001
 
 # Pendulum
 i_s: [.00000001, .0000001, .000001]

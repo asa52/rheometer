@@ -3,8 +3,8 @@
 import numpy as np
 from scipy.integrate import ode
 
-import simulations.experiment.helpers as h
-import simulations.experiment.c_talker as talk
+import helpers as h
+import c_talker as talk
 
 
 def f(t, y, i, g_0, b_prime, omega_sim, k_prime, theta_sim, b, k):

@@ -8,10 +8,10 @@ tfin: 10000
 dt: 0.01
 
 # Constant parameters at a time.
-i_s:  [.00000001]#, .0000001, .000001]
+i_s:  [.000000001]#, .0000001, .000001]
 b_s:  [.00000001]#, .000000005, .00000001, .00000005, .0000001]
 k_s:  [.0000005]#, .000001, .000005]
-b's:  [.000000001]#, .000000005, .00000001, .00000005, .0000001]
+b's:  [.00000001]#, .000000005, .00000001, .00000005, .0000001]
 k's:  [.000000005]#, .000001, .000005]
 
 # torque parameters - one at a time.
@@ -20,7 +20,7 @@ phis:   [0]
 
 # All values fed into one experiment. Values in radians. Range from 0-20Hz
 # roughly.
-w_d_start:   5.
+w_d_start:   1.
 w_d_step:    5.
 w_d_final: 145.
 

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-import simulations.experiment.helpers as h
+import helpers as h
 
 
 def calculate_cf_matrix(time, b, k, i):

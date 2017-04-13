@@ -106,17 +106,23 @@ def check_nyquist(time_array, w_d, b, b_prime, k, k_prime, i):
     return time_array
 
 
-def all_combs(func, *args):
+def all_combs(func, *args, deconstruct=False):
     """Iterate over a function multiple times using different input values.
     :param func: A baked function object with the correct number of remaining 
     arguments to be filled by args.
     :param args: A list of arrays for argument 1, 2, etc. for the function. E.g.
     If args = [[1,2], [3,4]], the function will be called thus:
     func(1,3), func(1,4), func(2,3), func(2,4). All these values will be 
-    returned as a list of results."""
+    returned as a list of results.
+    :param deconstruct: Whether or not to deconstruct the output from the 
+    function."""
     results = []
     for arg in np.array(np.meshgrid(*args)).T.reshape(-1, len(args)):
-        results.append([*arg, func(*arg)])
+        if deconstruct:
+            results.append([*arg, *func(*arg)])
+            pass
+        else:
+            results.append([*arg, func(*arg)])
     return results
 
 
@@ -179,3 +185,40 @@ def find_w2_gamma(b, k, i):
     w2 = b ** 2 / (4 * i ** 2) - k / i
     gamma = b / i
     return w2, gamma
+
+
+def calc_norm_errs(*datasets):
+    """Calculate the normalised error for each dataset in datasets, 
+    and return those. *Datasets is a deconstructed list of lists, ie.
+    datasets = [[exp_1, theory_1], [exp_2, theory_2], ...]. Each set is 
+    normalised by the value of theory_n at that point. Both data series in 
+    the dataset must have the same dimensions. Also returns the absolute 
+    errors."""
+    norm_errs = []
+    errs = []
+    for dataset in datasets:
+        assert len(dataset) == 2, "There can only be two data series per " \
+                                  "dataset!"
+        exp, theory = check_types_lengths(dataset[0], dataset[1])
+
+        err = exp - theory
+        errs.append(err)
+
+        # For arrays, Inf values are ignored when plotting.
+        norm_err = err / theory
+        norm_errs.append(norm_err)
+
+    return norm_errs, errs
+
+
+def stack_cols(*arrs):
+    """Stack column arrays side by side."""
+    main = np.array(arrs[0])
+    add_on = list(arrs[1:])
+    for i in range(len(add_on)):
+        add_on[i] = convert_to_array(add_on[i])
+        if len(add_on[i].shape) == 1 and len(arrs[0].shape) != 1:
+            # 1D array, need to introduce extra dimension.
+            add_on[i] = np.expand_dims(add_on[i], 1)
+
+    return np.hstack((main, *add_on))
