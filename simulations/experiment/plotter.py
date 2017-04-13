@@ -1,4 +1,4 @@
-"""Generic plotting code, as Bash on Windows cannot make displayable plots."""
+"""Plotting functions for the main types of plots I need."""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -92,7 +92,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                     legend_params = kwargs['legend']
                     axis.legend(**legend_params)
 
-    plot_name, descrip_name = plot_n_params(start, tag)
+    plot_name, descrip_name = _create_names(start, tag)
     if savepath is not None:
         # Save only if save path is not none.
         fig.savefig(savepath + plot_name, dpi=600)
@@ -111,7 +111,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
     return
 
 
-def plot_n_params(start, tag=None, filetype='pdf'):
+def _create_names(start, tag=None, filetype='pdf'):
     """Create the plot file name according to the format: 
     start-tags-format. All arguments are strings apart from kwargs 
     which is a dictionary of control parameters."""

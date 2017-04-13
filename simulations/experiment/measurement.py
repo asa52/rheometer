@@ -1,11 +1,14 @@
-"""Functions to process and perform measurements on the simulated data."""
+"""Functions to perform measurements and check other qualities of the signal 
+being processed."""
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pyfftw
 import scipy.signal as sg
-import matplotlib.pyplot as plt
 
 import helpers as h
+from helpers import check_types_lengths
+from theory import find_w2_gamma
 
 
 def calc_fft(x_axis, y_axis):
@@ -94,37 +97,6 @@ def get_peak_pos(max_peaks, x_axis, y_axis):
     return np.array([positions, half_widths])
 
 
-def peak_detect(y_values, n_maxima):
-    """Find the indices of the peaks in y-values and their heights, and return 
-    the sharpest n_maxima peaks. Does a calculation based on the np.gradient 
-    function, which uses using second order accurate central differences in the 
-    interior and either first differences or second order accurate one-sides 
-    (forward or backwards) differences at the boundaries."""
-    peaks = []
-    first_diff = np.gradient(y_values)
-    second_diff = np.gradient(first_diff)
-    # Maxima will have negative curvature. Obtain the peak position by
-    # finding within each consecutive set where the first derivative is
-    # closest to zero.
-    maxima_ranges = np.where(second_diff < 0)[0]
-    consecs = np.split(maxima_ranges, np.where(np.diff(maxima_ranges) != 1)[0]
-                       + 1)
-    for indices in consecs:
-        # Want to find the stationary point of the curve - where first_diff
-        # is closest to zero for that peak. Indices is an array of indices.
-        diff_set = first_diff[indices]
-        pos = (np.abs(diff_set)).argmin()
-        index = indices[pos]
-        peaks.append([index, y_values[index]])
-
-    peaks = np.array(peaks)
-    n_maxima = int(n_maxima)
-    if n_maxima is not None:
-        ind = np.argpartition(peaks[:, 1], -n_maxima)[-n_maxima:]
-        peaks = peaks[ind, :]
-    return peaks
-
-
 def calc_one_amplitude(real_disps, bins=None):
     """Calculate the mean amplitude of time-domain signal y."""
     if bins is None:
@@ -141,7 +113,7 @@ def calc_one_amplitude(real_disps, bins=None):
     # Find the 2 biggest maxima and find their difference to get the
     # peak-to-peak displacement, which is then halved with an error based on the
     # width of the bins.
-    maxima = peak_detect(num, 2)
+    maxima = _peak_detect(num, 2)
     max_disps = get_peak_pos(maxima, bin_centres, num)
     max_disps[0, :] -= np.mean(displacements)
     return np.absolute(h.combine_quantities(np.absolute(max_disps[0, :]),
@@ -152,7 +124,7 @@ def calc_one_amplitude(real_disps, bins=None):
 def calc_freqs(full_fft_y, freqs, n_peaks=1):
     """Calculate the top n_peaks frequencies in a FFT'd signal full_fft_y."""
     # Get the peak positions and their bandwidths.
-    max_peaks = peak_detect(full_fft_y, n_peaks * 2)
+    max_peaks = _peak_detect(full_fft_y, n_peaks * 2)
 
     # We always expect the spectrum to be symmetric as the signal is real. So
     # there will be an even number of peaks.
@@ -187,6 +159,112 @@ def calc_phase(real_resp, real_force):
     hil_torque = sg.hilbert(real_force)
     phases = np.angle(hil_y / hil_torque)  # also calculate average and error.
     return h.combine_quantities(phases, operation='mean')
+
+
+def remove_one_frequency(times, theta, w_remove):
+    """Remove one frequency from the real space signal.
+    :param times: Time array
+    :param theta: Theta array
+    :param w_remove: Remove this angular frequency.
+    :return: The theta array with the frequency in question filtered out."""
+
+    n = theta.shape[-1]
+    frq, fft_theta = calc_fft(times, theta)
+    f_remove = w_remove / (2*np.pi)
+    frq_res = frq[1] - frq[0]
+
+    # Filter
+    neg = np.logical_and(-10 * frq_res - f_remove <= frq,
+                         frq <= 10 * frq_res - f_remove)
+    pos = np.logical_and(-10 * frq_res + f_remove <= frq,
+                         frq <= 10 * frq_res + f_remove)
+    remove = np.where(np.logical_or(neg, pos))
+    fft_theta[remove] = 0
+
+    # Calculate IFFT using FFTW module. Shift and normalise.
+    ifft = pyfftw.builders.ifft(
+        np.fft.ifftshift(fft_theta) * n / 2., overwrite_input=False,
+        planner_effort='FFTW_ESTIMATE', threads=2, auto_align_input=False,
+        auto_contiguous=False, avoid_copy=True)
+    return ifft()
+
+
+def check_nyquist(time_array, w_d, b, b_prime, k, k_prime, i):
+    """Check Nyquist criterion is obeyed by the signal, for a given driving 
+    frequency and the transient frequency calculated from the remaining 
+    parameters."""
+    # At any time, the signal will consist of noise + PI + transient.
+    w2 = find_w2_gamma(b - b_prime, k - k_prime, i)[0]
+    w_res = 0
+    if w2 < 0:
+        w_res = np.sqrt(-w2)  # transient oscillates
+    w = w_d if w_d > w_res else w_res
+
+    # Check Nyquist criterion for the signal given a frequency. dt is the
+    # sampling time.
+    dt = np.abs(time_array[1] - time_array[0])
+    f_sample = 1 / dt
+    f_signal_max = w / (2 * np.pi)
+    nyquist_limit = 2 * f_signal_max
+    if f_sample < nyquist_limit:
+        print('Sampling frequency increased to prevent aliasing.')
+        time_array = np.arange(time_array[0], time_array[-1], 1 / nyquist_limit)
+    return time_array
+
+
+def calc_norm_errs(*datasets):
+    """Calculate the normalised error for each dataset in datasets, 
+    and return those. *Datasets is a deconstructed list of lists, ie.
+    datasets = [[exp_1, theory_1], [exp_2, theory_2], ...]. Each set is 
+    normalised by the value of theory_n at that point. Both data series in 
+    the dataset must have the same dimensions. Also returns the absolute 
+    errors."""
+    norm_errs = []
+    errs = []
+    for dataset in datasets:
+        assert len(dataset) == 2, "There can only be two data series per " \
+                                  "dataset!"
+        exp, theory = check_types_lengths(dataset[0], dataset[1])
+
+        err = exp - theory
+        errs.append(err)
+
+        # For arrays, Inf values are ignored when plotting.
+        norm_err = err / theory
+        norm_errs.append(norm_err)
+
+    return norm_errs, errs
+
+
+def _peak_detect(y_values, n_maxima):
+    """Find the indices of the peaks in y-values and their heights, and return 
+    the sharpest n_maxima peaks. Does a calculation based on the np.gradient 
+    function, which uses using second order accurate central differences in the 
+    interior and either first differences or second order accurate one-sides 
+    (forward or backwards) differences at the boundaries."""
+    peaks = []
+    first_diff = np.gradient(y_values)
+    second_diff = np.gradient(first_diff)
+    # Maxima will have negative curvature. Obtain the peak position by
+    # finding within each consecutive set where the first derivative is
+    # closest to zero.
+    maxima_ranges = np.where(second_diff < 0)[0]
+    consecs = np.split(maxima_ranges, np.where(np.diff(maxima_ranges) != 1)[0]
+                       + 1)
+    for indices in consecs:
+        # Want to find the stationary point of the curve - where first_diff
+        # is closest to zero for that peak. Indices is an array of indices.
+        diff_set = first_diff[indices]
+        pos = (np.abs(diff_set)).argmin()
+        index = indices[pos]
+        peaks.append([index, y_values[index]])
+
+    peaks = np.array(peaks)
+    n_maxima = int(n_maxima)
+    if n_maxima is not None:
+        ind = np.argpartition(peaks[:, 1], -n_maxima)[-n_maxima:]
+        peaks = peaks[ind, :]
+    return peaks
 
 
 def _calc_stft(x_axis, y_axis, n_per_segment):
@@ -228,34 +306,6 @@ def _norm_correlations(x_axis, y_axis, n_per_segment):
                 # When trying to divide by zero.
                 correlations.append(0)
     return xs, np.array(correlations).squeeze()
-
-
-def remove_one_frequency(times, theta, w_remove):
-    """Remove one frequency from the real space signal.
-    :param times: Time array
-    :param theta: Theta array
-    :param w_remove: Remove this angular frequency.
-    :return: The theta array with the frequency in question filtered out."""
-
-    n = theta.shape[-1]
-    frq, fft_theta = calc_fft(times, theta)
-    f_remove = w_remove / (2*np.pi)
-    frq_res = frq[1] - frq[0]
-
-    # Filter
-    neg = np.logical_and(-10 * frq_res - f_remove <= frq,
-                         frq <= 10 * frq_res - f_remove)
-    pos = np.logical_and(-10 * frq_res + f_remove <= frq,
-                         frq <= 10 * frq_res + f_remove)
-    remove = np.where(np.logical_or(neg, pos))
-    fft_theta[remove] = 0
-
-    # Calculate IFFT using FFTW module. Shift and normalise.
-    ifft = pyfftw.builders.ifft(
-        np.fft.ifftshift(fft_theta) * n / 2., overwrite_input=False,
-        planner_effort='FFTW_ESTIMATE', threads=2, auto_align_input=False,
-        auto_contiguous=False, avoid_copy=True)
-    return ifft()
 
 
 if __name__ == '__main__':

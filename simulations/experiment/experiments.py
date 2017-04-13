@@ -5,13 +5,14 @@ import os
 import time
 import numpy as np
 import pandas as pd
+from scipy.integrate import ode
 
 import helpers as h
-import testing as test
 import measurement as m
 import conditional_pend as c
 import plotter as p
 import theory as t
+import c_talker as talk
 
 
 class Experiment:
@@ -31,7 +32,7 @@ class Experiment:
             self.description = self.__class__.__doc__
 
         self._update_filename()
-        self.timer = test.CodeTimer()
+        self.timer = h.CodeTimer()
         self.log_text = ''
 
         # Create appropriate directories and read config_file.
@@ -124,14 +125,14 @@ class MeasuringAccuracy(Experiment):
         torque_amplitude, torque_phase, torque_frequency and noise. t is a time 
         array."""
 
-        times = h.check_nyquist(times, w_d, b, b_prime, k, k_prime, i)
+        times = m.check_nyquist(times, w_d, b, b_prime, k, k_prime, i)
 
         torque = g_0_mag * np.sin(w_d * times + phase)
         pi_contr = h.baker(t.calculate_sine_pi, [
             "", "", "", "", g_0_mag, w_d, phase], pos_to_pass_through=(0, 3))
         theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i,
                                     pi_contr)
-        w_res = np.sqrt(-h.find_w2_gamma(b - b_prime, k - k_prime, i)[0])
+        w_res = np.sqrt(-theory.find_w2_gamma(b - b_prime, k - k_prime, i)[0])
         self._log('after nyquist check')
         if b - b_prime >= 0:
             if b - b_prime == 0 and np.isreal(w_res):
@@ -189,7 +190,7 @@ class MeasuringAccuracy(Experiment):
         # Get the theoretical position of the peak and generate a finely
         # spaced set of frequency points around it to measure with greater
         # resolution here.
-        w2, gamma = h.find_w2_gamma(b_s - b_primes, k_s - k_primes, i_s)
+        w2, gamma = t.find_w2_gamma(b_s - b_primes, k_s - k_primes, i_s)
 
         # 5 * bandwidth on either side
         gamma = np.absolute(gamma)
@@ -249,7 +250,7 @@ class MeasuringAccuracy(Experiment):
 
         theory_amps = np.absolute(fft_theory[:, -1])
         theory_phases = np.angle(fft_theory[:, -1])
-        amp_err, phase_err = h.calc_norm_errs([amps[:, 0], theory_amps],
+        amp_err, phase_err = m.calc_norm_errs([amps[:, 0], theory_amps],
                                               [phases[:, 0], theory_phases])[0]
 
         theory_n_mmt = \
@@ -379,15 +380,105 @@ class NRRegimes(Experiment):
 
     def __init__(self):
         super(NRRegimes, self).__init__()
+
+        # Get the driving frequency and hence the sampling rate. This can be
+        # an array, which will be tested one at a time. TODO convert to array.
+        self.w_d = self.prms['w_d']
+        self.dt = 2 * np.pi / (self.w_d * 120)
+        # 120 as 120 points per cycle on C code
+
+        # Convert a torque from the config file to a digitised value.
+        self.g0_volt = self._torque_to_volt(self.prms['g_0_mag'])
+        # self.prms['torque_to_current_err'] TODO where to use this?
+
+        # k' and b' conversion
+        self.k_pr_volt = self._torque_to_volt(self.prms['k\'']) / self.prms[
+            'rad_to_0.1um']
+        self.b_pr_volt = self._torque_to_volt(self.prms['b\'']) / (self.prms[
+            'rad_to_0.1um'] * self.dt)   # todo check this
+
+        assert len(self.k_pr_volt) == len(self.b_pr_volt) == len(self.g0_volt) \
+            == 1, "Only one set of parameters can be run at once!"
+
         # Set the parameters in the Arduino script.
+        talk.set_k_b_primes(int(self.k_pr_volt[0]), int(self.b_pr_volt[0]))
+        talk.set_amp(int(self.g0_volt[0]))
+
+        # set initial parameters.
+        self.torques = []
+
+    def _torque_to_volt(self, torque):
+        return ((torque / self.prms['torque_to_current']) - self.prms[
+            'dac_to_current_intercept']) / self.prms['dac_to_current_gradient']
+
+    def _volt_to_torque(self, volt):
+        return (volt * self.prms['dac_to_current_gradient'] + self.prms[
+            'dac_to_current_intercept']) * self.prms['torque_to_current']
+
+    def _get_updated_torque(self, current_time, theta):
+        """Get the updated torque from the C script given the angular 
+        displacement in radians."""
+
+        # convert to microns and then find closest match to a value from the
+        # proximity sensor. todo why is the calibration curve for the sensor
+        # todo increasing in signal as the displacement increases?
+        theta /= self.prms['rad_to_0.1um']
+        idx = (np.abs(self.prms['sensor_to_disp'] - theta)).argmin()
+        # note that idx is the proximity sensor reading, which should be fed
+        # into the C code.
+        digitised_torque = talk.get_torque(int(idx))
+        # also get the digitised theta and d(theta)/dt values.
+        digitised_theta_sim = talk.get_mu()
+        digitised_omega_sim = talk.get_dmudt()
+
+        total_torque = self._volt_to_torque(digitised_torque)
+        theta_sim = digitised_theta_sim * self.prms['rad_to_0.1um']
+        omega_sim = digitised_omega_sim * self.prms['rad_to_0.1um'] / self.dt
+        # todo check the above formulae.
+
+        # todo get the time t.
+        self.torques.append([current_time, total_torque, theta_sim, omega_sim])
+
+        return total_torque
 
     def main_operation(self):
-        """Link up the Arduino script to control all the right parameters."""
-        pass
+        """Run the ODE integrator for the system in question."""
+        # Set parameters.
+        i = self.prms['i']
+        b = self.prms['b']
+        k = self.prms['k']
+        y0 = [self.prms['theta_0'], self.prms['omega_0']]
+        t0 = self.prms['t0']
+        t_fin = self.prms['tfin']
+
+        r = ode(c.f_full_torque, c.jac).set_integrator('dop853')
+        baked_g_0 = h.baker(self._get_updated_torque, args=['', y0[0]])
+        r.set_initial_value(y0, t0).set_f_params(
+            i, b, k, baked_g_0).set_jac_params(i, b, k)
+
+        results = [[t0, *y0]]
+        while r.successful() and r.t < t_fin:
+            y = np.real(r.integrate(r.t + self.dt))
+
+            data_point = [r.t + self.dt, *y]
+            print(data_point)
+            results.append(data_point)
+
+            # Recalculate the reset the torque!
+            baked_g_0 = h.baker(self._get_updated_torque, args=['', y[0]])
+            r.set_f_params(i, b, k, baked_g_0)
+        print(results)
+        exp_results = pd.DataFrame(np.array(results), columns=['t, theta'])
+
+        return {'displacements': exp_results}
+
 
 if __name__ == '__main__':
     #initial_setup = h.yaml_read('../configs/MeasuringAccuracy.yaml')
     #m1 = MeasuringAccuracy(config=initial_setup)
     #m1.run()
-    t1 = TheoryVsSimulation()
-    t1.run()
+    #t1 = TheoryVsSimulation()
+    #t1.run()
+    n1 = NRRegimes()
+    n1.run()
+

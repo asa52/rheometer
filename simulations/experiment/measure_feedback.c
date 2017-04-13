@@ -257,7 +257,7 @@ int get_dmudt();
 
 int main(int theta) {
   // theta is the angular displacement of the pendulum, not necessarily
-  // converted to pos values.
+  // converted to mu values.
   // analogWriteResolution(12);  // set the analog output resolution to 12 bit
   // (4096 levels)
   // analogReadResolution(12);   // set the analog input resolution to 12 bit
@@ -280,7 +280,7 @@ int main(int theta) {
     int num = (pos - pos_0);  // Convert to index from which the voltage from
                               // A0 can be converted into TODO 'distance
                               // values'
-    mu = A0mu[num];           // 0.1 microns
+    mu = A0mu[num];           // 0.1 microns is the unit here
   }
 
   if (centre_mode == 1) {

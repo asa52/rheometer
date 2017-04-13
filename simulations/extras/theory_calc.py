@@ -3,7 +3,9 @@ the experiment from the ODE integration and Arduino script."""
 
 import numpy as np
 
+import measurement
 import simulations.experiment.helpers as h
+import theory
 
 
 def calculate_cf(time, b, k, i):
@@ -15,7 +17,7 @@ def calculate_cf(time, b, k, i):
     :param i: Moment of inertia.
     :return: Coefficients matrix: [[theta_A, theta_B], [omega_A, omega_B]]."""
     time = h.convert_to_array(time)
-    w2, gamma = h.find_w2_gamma(b, k, i)
+    w2, gamma = theory.find_w2_gamma(b, k, i)
     if w2 > 0:
         w = np.sqrt(w2)
         theta_coeffs = np.exp(-gamma * time / 2.) * np.array([np.exp(w * time),

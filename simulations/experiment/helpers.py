@@ -1,8 +1,50 @@
 """Helper functions for the rest of the code to work, which don't have much 
 to do with the Physics."""
 
+import time
 import numpy as np
 import yaml
+
+
+class CodeTimer:
+    """Generic class to time code execution."""
+
+    def __init__(self, name=None):
+        if name is None:
+            self.name = ''
+        self.start = None  # Timer not yet started.
+        self.created = time.time()
+        # Keep track of how many times this timer has measured the elapsed time.
+        self.n_called = 0
+        self.checkpoints = []
+        return
+
+    def start_timer(self):
+        self.start = time.time()
+        print("Timer {} started.".format(self.name))
+
+    def checkpoint(self, checkp_name=None, verbose=False):
+        """Create a checkpoint for which elapsed time will be printed. Give 
+        the checkpoint a name string to make it recognisable."""
+        self.n_called += 1
+        if checkp_name is None:
+            checkp_name = self.n_called
+        time_here = self.get_elapsed()
+        self.checkpoints.append([time_here, checkp_name, self.n_called])
+        if verbose:
+            print("Reached {} at {}s after start.".format(checkp_name,
+                                                          time_here))
+        return [time_here, checkp_name, self.n_called]
+
+    def see_checkpoints(self):
+        """Print all timing checkpoints so far."""
+        self.checkpoint('End of experiment')
+        checkpoints = np.array(self.checkpoints)
+        print("Total runtime: {}".format(self.get_elapsed()))
+        return checkpoints
+
+    def get_elapsed(self):
+        return time.time() - self.start
 
 
 def make_same_dim(*variables, ref_dim_array=np.ones(1)):
@@ -83,29 +125,6 @@ def baker(fun, args=None, kwargs=None, pos_to_pass_through=(0, 0)):
     return wrapped
 
 
-def check_nyquist(time_array, w_d, b, b_prime, k, k_prime, i):
-    """Check Nyquist criterion is obeyed by the signal, for a given driving 
-    frequency and the transient frequency calculated from the remaining 
-    parameters."""
-    # At any time, the signal will consist of noise + PI + transient.
-    w2 = find_w2_gamma(b - b_prime, k - k_prime, i)[0]
-    w_res = 0
-    if w2 < 0:
-        w_res = np.sqrt(-w2)  # transient oscillates
-    w = w_d if w_d > w_res else w_res
-
-    # Check Nyquist criterion for the signal given a frequency. dt is the
-    # sampling time.
-    dt = np.abs(time_array[1] - time_array[0])
-    f_sample = 1 / dt
-    f_signal_max = w / (2 * np.pi)
-    nyquist_limit = 2 * f_signal_max
-    if f_sample < nyquist_limit:
-        print('Sampling frequency increased to prevent aliasing.')
-        time_array = np.arange(time_array[0], time_array[-1], 1 / nyquist_limit)
-    return time_array
-
-
 def all_combs(func, *args, deconstruct=False):
     """Iterate over a function multiple times using different input values.
     :param func: A baked function object with the correct number of remaining 
@@ -135,16 +154,6 @@ def yaml_read(yaml_file):
     for key in config_dict:
         config_dict[key] = convert_to_array(config_dict[key])
     return config_dict
-
-
-def _check_iterable(variable):
-    """Checks that a variable is iterable, such as tuple, list or array, 
-    but is not a string."""
-    try:
-        len(variable)
-        return hasattr(variable, '__iter__') and type(variable) is not str
-    except TypeError:
-        return False
 
 
 def combine_quantities(quants, errs=None, operation='mean', axis=None):
@@ -181,36 +190,6 @@ def combine_quantities(quants, errs=None, operation='mean', axis=None):
     return np.array([quantity, err]).squeeze()
 
 
-def find_w2_gamma(b, k, i):
-    w2 = b ** 2 / (4 * i ** 2) - k / i
-    gamma = b / i
-    return w2, gamma
-
-
-def calc_norm_errs(*datasets):
-    """Calculate the normalised error for each dataset in datasets, 
-    and return those. *Datasets is a deconstructed list of lists, ie.
-    datasets = [[exp_1, theory_1], [exp_2, theory_2], ...]. Each set is 
-    normalised by the value of theory_n at that point. Both data series in 
-    the dataset must have the same dimensions. Also returns the absolute 
-    errors."""
-    norm_errs = []
-    errs = []
-    for dataset in datasets:
-        assert len(dataset) == 2, "There can only be two data series per " \
-                                  "dataset!"
-        exp, theory = check_types_lengths(dataset[0], dataset[1])
-
-        err = exp - theory
-        errs.append(err)
-
-        # For arrays, Inf values are ignored when plotting.
-        norm_err = err / theory
-        norm_errs.append(norm_err)
-
-    return norm_errs, errs
-
-
 def stack_cols(*arrs):
     """Stack column arrays side by side."""
     main = np.array(arrs[0])
@@ -222,3 +201,13 @@ def stack_cols(*arrs):
             add_on[i] = np.expand_dims(add_on[i], 1)
 
     return np.hstack((main, *add_on))
+
+
+def _check_iterable(variable):
+    """Checks that a variable is iterable, such as tuple, list or array, 
+    but is not a string."""
+    try:
+        len(variable)
+        return hasattr(variable, '__iter__') and type(variable) is not str
+    except TypeError:
+        return False

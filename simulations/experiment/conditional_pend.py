@@ -23,6 +23,12 @@ def f(t, y, i, g_0, b_prime, omega_sim, k_prime, theta_sim, b, k):
                    y[1] - k * y[0]) / i]
 
 
+def f_full_torque(t, y, i, b, k, g):
+    """RHS of the ODE with only full torque on the RHS. Variables defined as 
+    above. Has the same Jacobian as f."""
+    return [y[1], (g(t) - b * y[1] - k * y[0]) / i]
+
+
 def jac(t, y, i, b, k):
     """The Jacobian J[i, j] = df[i]/dy[j] of the above f."""
     return [[0, 1], [-k / i, -b / i]]
@@ -73,7 +79,7 @@ def nr_torque(t, omega_d, amplitude, phase, b_prime, k_prime):
 
     # First run code
     run = 0
-    talk.set_k_b(k_prime, b_prime)  # todo check value and dimensions of each
+    talk.set_k_b_primes(k_prime, b_prime)  # todo check value and dimensions of each
     # todo set amplitude, phase and omega_d also
     theta_sim = []
     omega_sim = []
