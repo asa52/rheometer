@@ -1,5 +1,6 @@
 #include <time.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define range 480
 #define sample_num 120
@@ -214,7 +215,7 @@ static int waveformsTable[sample_num] = {
 // explain each variable and the different modes
 uint8_t b[3] = {0, 0, 0}, mode, val_in[4] = {0, 0, 0, 0};
 int measure = 0, run_option = 0;
-int func = 0, pos = 0, centre, peak, trough, pos_0 = 1558, mu, mu_tol = 40,
+int func = 0, pos = 0, centre, peak, trough, pos_0 = 1558, mu = 0, mu_tol = 40,
     set_strain = 2048;
 int step_count = 0, sign_change_count = 0, strain_closing_in = 0, A0_amp,
     dA0dt_amp;
@@ -228,7 +229,7 @@ int amp = 64, old_peak_to_trough, old_amp_step = 1, amp_step = 4, old_amp = 64,
 int f = 0, p = 0, delta_num = 0, li = 0, corr, t_diff = 0, f_count = 0;
 int t = 0, last_t = 0, t_peak, t_trough, dt, t_dpeakdt, t_dtroughdt, dpeakdt,
     dtroughdt;
-int dmudt, darraydt[range], DC_func = 2047, NR = 1, korb = 0, k_prime = 10,
+int dmudt = 0, darraydt[range], DC_func = 2047, NR = 1, korb = 0, k_prime = 10,
     b_prime = 10, Torv = 0;
 int centre_mode = 0, equilibrium_A0 = -1, used_zero_A0;
 int peak_to_peak, upper_amplitude, lower_amplitude, centre_estimated = 0;
@@ -254,6 +255,7 @@ int get_b();
 int get_amp();
 int get_mu();
 int get_dmudt();
+int get_point_in_cycle();
 
 int main(int theta) {
   // theta is the angular displacement of the pendulum, not necessarily
@@ -282,7 +284,7 @@ int main(int theta) {
                               // values'
     mu = A0mu[num];           // 0.1 microns is the unit here
   }
-
+  //printf("pos: %i mu: %i\n", pos, mu);
   if (centre_mode == 1) {
     used_zero_A0 = equilibrium_A0;  // set zero point to some value you set
   } else {
@@ -291,8 +293,8 @@ int main(int theta) {
 
   if (NR == 1 && (run_option == 0 || run_option == 1)) {
     func = (((waveformsTable[t] - waveformsTable[0]) * amp) / 2048) 
-           // + (((mu - used_zero_A0) * k_prime) 
-           // + (dmudt * b_prime) 
+            + ((mu - used_zero_A0) * k_prime)
+            + (dmudt * b_prime)
             + 2047;  // midpoint
   }  
 
@@ -304,7 +306,7 @@ int main(int theta) {
     // if too small, clip
     func = 0;
   }  
-  //handle_const_strain_feedback();  
+  handle_const_strain_feedback();
   t++;  // counts number of completed computing cycles
   if (t == sample_num) {
     t = 0;  // Reset the counter to repeat the wave
@@ -843,6 +845,14 @@ void set_amp(int digitised_amplitude){
     amp = digitised_amplitude;
 }
 
+void set_mu(int theta){
+    mu = theta;
+}
+
+void set_dmudt(int omega){
+    dmudt = omega;
+}
+
 int get_k(){
     return k_prime;
 }
@@ -861,4 +871,8 @@ int get_mu(){
 
 int get_dmudt(){
     return dmudt;
+}
+
+int get_point_in_cycle(){
+    return t;
 }

@@ -203,6 +203,21 @@ def stack_cols(*arrs):
     return np.hstack((main, *add_on))
 
 
+def find_consec_indices(arr):
+    """Given an array, find the indices of all the elements that are equal to 
+    the last element and also have consecutive indices. Note arr must be 1D."""
+    all_matches = np.where(arr[:] == arr[-1])[0]
+    index_lists = np.split(all_matches, np.where(np.diff(all_matches) != 1)[0]
+                           + 1)
+    for i in range(len(index_lists)):
+        if len(arr) - 1 in index_lists[i]:
+            # Find the set that contains the index of the last element.
+            return index_lists[i]
+        elif i == len(index_lists) - 1:
+            # Not found anywhere
+            raise Exception('Panic.')
+
+
 def _check_iterable(variable):
     """Checks that a variable is iterable, such as tuple, list or array, 
     but is not a string."""

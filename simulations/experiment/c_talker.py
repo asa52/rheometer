@@ -13,6 +13,10 @@ get_torque.restype = c_int  # Specify the return type of the function.
 set_k_b_primes = arduino_code.set_k_b
 set_amp = arduino_code.set_amp
 set_amp.restype = c_int
+set_mu = arduino_code.set_mu
+set_mu.restype = c_int
+set_dmudt = arduino_code.set_dmudt
+set_dmudt.restype = c_int
 get_k_prime = arduino_code.get_k
 get_k_prime.restype = c_int
 get_b_prime = arduino_code.get_b
@@ -23,6 +27,8 @@ get_mu = arduino_code.get_mu
 get_mu.restype = c_int
 get_dmudt = arduino_code.get_dmudt
 get_dmudt.restype = c_int
+get_point_in_cycle = arduino_code.get_point_in_cycle
+get_point_in_cycle.restype = c_int
 
 
 def main():
@@ -37,6 +43,7 @@ def main():
     #print(get_amp())
     #np.savetxt('test.txt', r# esults)
     print(get_k_prime(), get_b_prime())
+
 
 def to_voltage(dmless_value, res_bit=12, min_voltage=0.55, max_voltage=2.75):
     """Convert a digitised value to a voltage between min_voltage and 

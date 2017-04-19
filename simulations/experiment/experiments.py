@@ -6,13 +6,14 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.integrate import ode
+import matplotlib.pyplot as plt
 
 import helpers as h
 import measurement as m
 import conditional_pend as c
 import plotter as p
 import theory as t
-import c_talker as talk
+#import c_talker as talk
 
 
 class Experiment:
@@ -381,69 +382,7 @@ class NRRegimes(Experiment):
     def __init__(self):
         super(NRRegimes, self).__init__()
 
-        # Get the driving frequency and hence the sampling rate. This can be
-        # an array, which will be tested one at a time. TODO convert to array.
-        self.w_d = self.prms['w_d']
-        self.dt = 2 * np.pi / (self.w_d * 120)
-        # 120 as 120 points per cycle on C code
-
-        # Convert a torque from the config file to a digitised value.
-        self.g0_volt = self._torque_to_volt(self.prms['g_0_mag'])
-        # self.prms['torque_to_current_err'] TODO where to use this?
-
-        # k' and b' conversion
-        self.k_pr_volt = self._torque_to_volt(self.prms['k\'']) / self.prms[
-            'rad_to_0.1um']
-        self.b_pr_volt = self._torque_to_volt(self.prms['b\'']) / (self.prms[
-            'rad_to_0.1um'] * self.dt)   # todo check this
-
-        assert len(self.k_pr_volt) == len(self.b_pr_volt) == len(self.g0_volt) \
-            == 1, "Only one set of parameters can be run at once!"
-
-        # Set the parameters in the Arduino script.
-        talk.set_k_b_primes(int(self.k_pr_volt[0]), int(self.b_pr_volt[0]))
-        talk.set_amp(int(self.g0_volt[0]))
-
-        # set initial parameters.
-        self.torques = []
-
-    def _torque_to_volt(self, torque):
-        return ((torque / self.prms['torque_to_current']) - self.prms[
-            'dac_to_current_intercept']) / self.prms['dac_to_current_gradient']
-
-    def _volt_to_torque(self, volt):
-        return (volt * self.prms['dac_to_current_gradient'] + self.prms[
-            'dac_to_current_intercept']) * self.prms['torque_to_current']
-
-    def _get_updated_torque(self, current_time, theta):
-        """Get the updated torque from the C script given the angular 
-        displacement in radians."""
-
-        # convert to microns and then find closest match to a value from the
-        # proximity sensor. todo why is the calibration curve for the sensor
-        # todo increasing in signal as the displacement increases?
-        theta /= self.prms['rad_to_0.1um']
-        idx = (np.abs(self.prms['sensor_to_disp'] - theta)).argmin()
-        # note that idx is the proximity sensor reading, which should be fed
-        # into the C code.
-        digitised_torque = talk.get_torque(int(idx))
-        # also get the digitised theta and d(theta)/dt values.
-        digitised_theta_sim = talk.get_mu()
-        digitised_omega_sim = talk.get_dmudt()
-
-        total_torque = self._volt_to_torque(digitised_torque)
-        theta_sim = digitised_theta_sim * self.prms['rad_to_0.1um']
-        omega_sim = digitised_omega_sim * self.prms['rad_to_0.1um'] / self.dt
-        # todo check the above formulae.
-
-        # todo get the time t.
-        self.torques.append([current_time, total_torque, theta_sim, omega_sim])
-
-        return total_torque
-
-    def main_operation(self):
-        """Run the ODE integrator for the system in question."""
-        # Set parameters.
+        # set initial parameters
         i = self.prms['i']
         b = self.prms['b']
         k = self.prms['k']
@@ -451,34 +390,324 @@ class NRRegimes(Experiment):
         t0 = self.prms['t0']
         t_fin = self.prms['tfin']
 
-        r = ode(c.f_full_torque, c.jac).set_integrator('dop853')
-        baked_g_0 = h.baker(self._get_updated_torque, args=['', y0[0]])
+        # Get the driving frequency and hence the sampling rate. This can be
+        # an array, which will be tested one at a time. TODO convert to array.
+        self.w_d = self.prms['w_d']
+        self.dt = 2 * np.pi / (self.w_d * 120)
+        # 120 as 120 points per cycle on C code
+
+        self.display_dt = self.dt / 10  # The time on which to display
+        # calculations
+        # Convert a torque from the config file to a digitised value.
+        self.g0_volt = self._torque_to_volt(self.prms['g_0_mag'])
+        # convert centre point of voltage range to a voltage.
+        # self.prms['torque_to_current_err'] TODO where to use this?
+
+        # k' and b' conversion
+        self.k_pr_volt = self._torque_to_volt(
+            self.prms['k\''], subtr_midpoint=False) * self.prms['rad_to_0.1um']
+        self.b_pr_volt = self._torque_to_volt(
+            self.prms['b\''], subtr_midpoint=False) / self.prms['rad_to_0.1um']\
+            * self.dt   # todo check this
+
+        assert len(self.k_pr_volt) == len(self.b_pr_volt) == len(self.g0_volt) \
+            == 1, "Only one set of parameters can be run at once!"
+
+        # Set the parameters in the Arduino script.
+        talk.set_k_b_primes(int(self.k_pr_volt[0]), int(self.b_pr_volt[0]))
+        talk.set_amp(int(self.g0_volt[0]))
+        # set initial conditions
+        #talk.set_mu(int(theta in rad) / self.prms['rad_to_0.1um'])
+        # set dmudt also at time 0
+
+        print("Init parameters: dt: {}, display_dt: {}, b: {}, b': {}, k: {}, "
+              "k': {}, I: {}, y0: {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
+            self.dt, self.display_dt, b, self.prms['b\''], k, self.prms[
+                'k\''], i, y0, t0, t_fin, self.prms['g_0_mag'], self.prms[
+                'w_d']))
+        print("Parameters from the C code: k': {}, b': {}, g0: {}".format(
+            talk.get_k_prime(), talk.get_b_prime(), talk.get_amp()))
+
+        # set initial parameters.
+        self.digitised_torque = 0
+        self.digitised_theta_sim = 0
+        self.digitised_omega_sim = 0
+        self.total_torque = 0
+        self.theta_sim = 0
+        self.omega_sim = 0
+        self.ccode_time = 0
+        self.torques = self._get_readings(0)
+
+    def _torque_to_volt(self, torque, subtr_midpoint=True):
+        #return ((torque / self.prms['torque_to_current']) - self.prms[
+        #    'dac_to_current_intercept']) / self.prms['dac_to_current_gradient']
+        if subtr_midpoint:
+            return 1122334456 * torque - 7.12345679
+        else:
+            return 1122334456 * torque
+
+    def _volt_to_torque(self, volt):
+        #return ((volt) * self.prms['dac_to_current_gradient'] +
+        #        self.prms['dac_to_current_intercept']) * \
+        #       self.prms['torque_to_current']
+        return ((volt - 2047) + 7.12345679) / 1122334456.
+
+    def _update_torque(self, input_theta):
+        """Get the updated torque from the C script given the angular 
+        displacement in radians."""
+
+        # convert to microns and then find closest match to a value from the
+        # proximity sensor. todo why is the calibration curve for the sensor
+        # todo increasing in signal as the displacement increases?
+        input_theta /= self.prms['rad_to_0.1um']
+        idx = (np.abs(self.prms['sensor_to_disp'] - input_theta)).argmin()\
+            + 1558
+
+        # note that idx is the proximity sensor reading, which should be fed
+        # into the C code.
+        self.digitised_torque = talk.get_torque(int(idx))
+        # also get the digitised theta and d(theta)/dt values.
+        self.digitised_theta_sim = talk.get_mu()
+        self.digitised_omega_sim = talk.get_dmudt()
+
+        self.total_torque = self._volt_to_torque(self.digitised_torque)
+        self.theta_sim = self.digitised_theta_sim * self.prms['rad_to_0.1um']
+        self.omega_sim = self.digitised_omega_sim * self.prms['rad_to_0.1um']\
+            / self.dt
+        # todo check the above formulae.
+
+        self.ccode_time = talk.get_point_in_cycle()
+        print("Torque now updated to {}".format(self.digitised_torque))
+
+    def _get_recent_torque(self, current_time):
+        """Return the last calculated torque."""
+
+        current_reading = self._get_readings(current_time)
+        print("Current torques reading", current_reading)
+        self.torques = np.vstack((self.torques, current_reading))
+
+        return self.total_torque
+
+    def _get_readings(self, current_time):
+        current_reading = np.array(
+            [self.ccode_time, current_time, self.digitised_torque,
+             self.total_torque, self.digitised_theta_sim, self.theta_sim,
+             self.digitised_omega_sim, self.omega_sim])
+        for i in range(len(current_reading)):
+            try:
+                assert len(current_reading[i]) == 1
+                current_reading[i] = current_reading[i][0]
+            except TypeError:
+                pass
+        return np.array(current_reading)
+
+    def main_operation(self):
+        """Run the ODE integrator for the system in question."""
+        # Set parameters.
+        i = self.prms['i']
+        b = self.prms['b']
+        k = self.prms['k']
+        y0 = np.array([self.prms['theta_0'], self.prms['omega_0']]).squeeze()
+        t0 = self.prms['t0']
+        t_fin = self.prms['tfin']
+
+        r = ode(c.f_full_torque, c.jac)#.set_integrator('dop853')
+        self._update_torque(y0[0])
         r.set_initial_value(y0, t0).set_f_params(
-            i, b, k, baked_g_0).set_jac_params(i, b, k)
+            i, b, k, self._get_recent_torque).set_jac_params(i, b, k)
 
-        results = [[t0, *y0]]
+        results = [[*t0, *y0]]
+
         while r.successful() and r.t < t_fin:
-            y = np.real(r.integrate(r.t + self.dt))
+            y = np.real(r.integrate(r.t + self.display_dt))
+            data_point = [*(r.t + self.display_dt), *y]
+            results.append(data_point)
+            print("Time-theta-omega", data_point)
+            # Recalculate the reset the torque every dt seconds.
 
-            data_point = [r.t + self.dt, *y]
-            print(data_point)
+            # get the last set of consecutive points where the digitised
+            # torque (-6th column) has the same value as the current one
+            # every cycle. If the corresponding times have a range greater
+            # than or equal to dt, re-measure the torque.
+            matching_indices = h.find_consec_indices(self.torques[:, -6])
+            if self.torques[-1, 1] - min(self.torques[matching_indices,
+                                                      1]) >= self.dt:
+                self._update_torque(y[0])
+                print("triggered")
+                r.set_initial_value(r.y, r.t).set_f_params(
+                    i, b, k, self._get_recent_torque)
+
+        results = np.array(results).squeeze()
+        sines_torque = h.baker(t.calculate_sine_pi,
+                               ["", "", "", "", self.prms['g_0_mag'],
+                                self.prms['w_d'], np.array([0])],
+                               pos_to_pass_through=(0, 3))
+
+        theory = t.calc_theory_soln(
+            np.linspace(0,2,1000), t0[0], y0, (b - self.prms['b\''])[0],
+            (k - self.prms['k\''])[0], i[0], sines_torque)
+        print("Init parameters: dt: {}, display_dt: {}, b: {}, b': {}, k: {}, "
+              "k': {}, I: {}, y0: {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
+            self.dt, self.display_dt, b, self.prms['b\''], k, self.prms[
+                'k\''], i, y0, t0, t_fin, self.prms['g_0_mag'], self.prms[
+                'w_d']))
+        print("Parameters from the C code: k': {}, b': {}, g0: {}".format(
+            talk.get_k_prime(), talk.get_b_prime(), talk.get_amp()))
+
+        plt.plot(theory[:, 0], theory[:, 1])
+        plt.plot(results[:, 0], results[:, 1])
+        plt.show()
+        #exp_results = pd.DataFrame(np.array(results).squeeze(),
+        #                           columns=['t', 'theta', 'omega'])
+        #print("Integration complete. Summary of results: Time-theta-omega and "
+        #      "torques-summary")
+        #print(exp_results)
+        # print(np.array(self.torques))
+        #print(pd.DataFrame(np.array(self.torques), columns=[
+        #    't', 'total-torque', 'theta-sim', 'omega-sim']))
+        #return {'displacements': exp_results}
+
+
+class NRRegimesPython(Experiment):
+    """Tests the theoretical against the ODE integrator function in the time 
+    domain for one set of control parameters, allowing for variable noise and 
+    delays to be introduced at any stage. Uses only Python."""
+
+    def __init__(self):
+        super(NRRegimesPython, self).__init__()
+
+        # set initial parameters
+        self.i = self.prms['i']
+        self.b = self.prms['b']
+        self.k = self.prms['k']
+        self.k_prime = self.prms['k\'']
+        self.b_prime = self.prms['b\'']
+        self.y0 = np.array([self.prms['theta_0'],
+                            self.prms['omega_0']]).squeeze()
+        self.t0 = self.prms['t0']
+        self.t_fin = self.prms['tfin']
+        self.g_0 = self.prms['g_0_mag']
+
+        # Get the driving frequency and hence the sampling rate. This can be
+        # an array, which will be tested one at a time. TODO convert to array.
+        self.w_d = self.prms['w_d']
+        self.dt = 2 * np.pi / (self.w_d * 120)
+        self.phi = self.prms['phi']
+
+        # Create an array of the sine values for the analytic torque.
+        self.torque_sine = self.g_0 * np.sin(self.w_d * np.arange(
+            self.t0, 2 * np.pi / self.w_d, self.dt) + self.phi)
+
+        # set initial parameters. For 1st run, set them equal to the actual
+        # initial conditions to avoid later errors in calculation.
+        self.total_torque = self.torque_sine[0]     # Only analytic torque here.
+        self.theta_sim = self.y0[0]
+        self.omega_sim = self.y0[1]
+        self.torques = np.array([[*self.t0, self.total_torque, self.theta_sim,
+                                 self.omega_sim]])
+
+    def _update_torque(self, input_theta, i):
+        """Get the updated torque given the angular displacement in radians."""
+        last_theta_sim = self.torques[-1, 2]
+
+        # theta_sim value in torques array
+        self.theta_sim = input_theta  # todo add noise and delays here
+        self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
+        self.total_torque = self.torque_sine[i % len(self.torque_sine)] + \
+            self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
+        return self.total_torque
+
+    def _get_recent_torque(self, current_time):
+        """Return the last calculated torque."""
+        current_reading = self._get_readings(current_time)
+        self.torques = np.vstack((self.torques, current_reading))
+        return self.total_torque
+
+    def _get_readings(self, current_time):
+        current_reading = np.array(
+            [current_time, self.total_torque, self.theta_sim, self.omega_sim])
+        for i in range(len(current_reading)):
+            try:
+                assert len(current_reading[i]) == 1
+                current_reading[i] = current_reading[i][0]
+            except TypeError:
+                pass
+        return np.array(current_reading)
+
+    def main_operation(self):
+        """Run the ODE integrator for the system in question."""
+        r = ode(c.f_full_torque, c.jac).set_integrator(
+            'vode', max_step=self.dt/10)
+        torque_index = 0
+        self._update_torque(self.y0[0], torque_index)
+        r.set_initial_value(self.y0, self.t0).set_f_params(
+            self.i, self.b, self.k, self._get_recent_torque).set_jac_params(
+            self.i, self.b, self.k)
+
+        results = [[*self.t0, *self.y0]]
+        sim_result_compare = []
+        while r.successful() and r.t < self.t_fin:
+            t_now = r.t + self.dt
+            y = np.real(r.integrate(t_now))
+            data_point = [*t_now, *y]
             results.append(data_point)
 
-            # Recalculate the reset the torque!
-            baked_g_0 = h.baker(self._get_updated_torque, args=['', y[0]])
-            r.set_f_params(i, b, k, baked_g_0)
-        print(results)
-        exp_results = pd.DataFrame(np.array(results), columns=['t, theta'])
+            # Get the last set of consecutive points where the torque has the
+            # same value as the current one every cycle. If the corresponding
+            # times have a range greater than or equal to dt, re-measure the
+            # torque.
+            match_indices = h.find_consec_indices(self.torques[:, 1])
+            if self.torques[-1, 0] - min(self.torques[match_indices, 0]) \
+                    >= self.dt:
+                torque_index += 1
+                self._update_torque(y[0], torque_index)
+                self._get_recent_torque(t_now)
+                sim_result_compare.append([*data_point, self.torques[-1, -2],
+                                           self.torques[-1, -1]])
+                r.set_initial_value(y, t_now).set_f_params(
+                    self.i, self.b, self.k, self._get_recent_torque)
 
-        return {'displacements': exp_results}
+        results = np.array(results).squeeze()
+        sim_result_compare = np.array(sim_result_compare).squeeze()
+
+        # Calculate theoretical results.
+        sines_torque = h.baker(t.calculate_sine_pi,
+                               ["", "", "", "", self.g_0, self.w_d, self.phi],
+                               pos_to_pass_through=(0, 3))
+        theory = t.calc_theory_soln(
+            results[:, 0], self.t0, self.y0, self.b - self.b_prime,
+            self.k - self.k_prime, self.i, sines_torque)
+        print(
+            "Init parameters: dt: {}, b: {}, b': {}, k: {}, k': {}, I: {}, y0:"
+            " {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
+                self.dt, self.b, self.b_prime, self.k, self.k_prime, self.i,
+                self.y0, self.t0, self.t_fin, self.g_0, self.w_d))
+
+        # Find absolute errors and plot.
+        iterator_diffs = m.calc_norm_errs(
+            [results[:, 1], theory[:, 1]], [results[:, 2], theory[:, 2]])[1]
+        simulated_diffs = m.calc_norm_errs(
+            [sim_result_compare[:, 3], sim_result_compare[:, 1]],
+            [sim_result_compare[:, 4], sim_result_compare[:, 2]])[1]
+
+        real_space_data = \
+            [[[[theory[:, 0], theory[:, 1]], [results[:, 0], results[:, 1]],
+               [self.torques[:, 0], self.torques[:, 2]]],
+              [[results[:, 0], iterator_diffs[0]],
+               [sim_result_compare[:, 0], simulated_diffs[0]]]],
+             [[[theory[:, 0], theory[:, 2]], [results[:, 0], results[:, 2]],
+               [self.torques[:, 0], self.torques[:, 3]]],
+              [[results[:, 0], iterator_diffs[1]],
+               [sim_result_compare[:, 0], simulated_diffs[1]]]]]
+        p.two_by_n_plotter(real_space_data, 'test', self.prms, show=True)
+
+        exp_results = pd.DataFrame(results, columns=['t', 'theta', 'omega'])
+        torques = pd.DataFrame(self.torques, columns=[
+            't', 'total torque', 'theta_sim', 'omega_sim'])
+
+        return {'displacements': exp_results, 'measured-vals': torques}
 
 
 if __name__ == '__main__':
-    #initial_setup = h.yaml_read('../configs/MeasuringAccuracy.yaml')
-    #m1 = MeasuringAccuracy(config=initial_setup)
-    #m1.run()
-    #t1 = TheoryVsSimulation()
-    #t1.run()
-    n1 = NRRegimes()
+    n1 = NRRegimesPython()
     n1.run()
-

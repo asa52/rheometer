@@ -118,3 +118,12 @@ def find_w2_gamma(b, k, i):
     w2 = b ** 2 / (4 * i ** 2) - k / i
     gamma = b / i
     return w2, gamma
+
+
+#sines_torque = h.baker(calculate_sine_pi,
+#                       ["", "", "", "", [1e-7], [30], [0]],
+#                       pos_to_pass_through=(0, 3))###
+
+#theory = calc_theory_soln(np.arange(0, 5, .001745), np.array([0]),
+#                          np.array([0, 0]), np.array([1e-8]), np.array([1e-6]),
+#                          np.array([1e-7]), sines_torque)#

@@ -4,17 +4,17 @@ theta_0: 0.
 omega_0: 0.
 
 # Time interval
-tfin: 10
+tfin: 2
 
 # Constant parameters at a time.
-i:  .000000001  #, .0000001, .000001]
-b:  .00000001   #, .000000005, .00000001, .00000005, .0000001]
-k:  .0000005    #, .000001, .000005]
-b': .00000001   #, .000000005, .00000001, .00000005, .0000001]
-k': .000000005  #, .000001, .000005]
+i:  1.e-7 #, .0000001, .000001]
+b:  1.e-8   #, .000000005, .00000001, .00000005, .0000001]
+k:  1.e-6    #, .000001, .000005]
+b': 0. #1.e-9   #, .000000005, .00000001, .00000005, .0000001]
+k': 0. #1.e-7  #, .000001, .000005]
 
 # torque parameters - one at a time.
-g_0_mag: .0000001 #, .0000005, .000001]
+g_0_mag: 1.e-7  #, .0000005, .000001]
 w_d:     30.
 
 
@@ -35,8 +35,8 @@ dac_to_current_gradient: 0.162  # dac output to current in micro amps, units
                                 # of microamps/dac
 dac_to_current_intercept: -331. # r^2 =1 here to 4 dp
 
-rad_to_0.1um:           1.      # units of rad per micron. NOTE relation not
-                                # linear
+rad_to_0.1um:           1.e-5      # units of rad per 0.1 micron. NOTE
+                                   # relation not linear actually MEASURE
 
 
 sensor_to_disp: [0,     5,     10,    15,    20,    25,    30,    35,    40,   45,    50,
