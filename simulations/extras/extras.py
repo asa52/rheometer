@@ -228,3 +228,49 @@ def peakdetect(y_axis, x_axis=None, lookahead=200, delta=0, n_maxima=None,
 
 # regex pattern to find numbers of any kind in a string.
 numeric_const_pattern = r"[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[Ee][+-]?\d+)?"
+
+
+def nr_torque(t, omega_d, amplitude, phase, b_prime, k_prime):
+    """Get the full torque for the oscillator at time t.
+    :param t: A single time value in seconds.
+    :param omega_d: Angular frequency of analytic part of torque.
+    :param amplitude: Amplitude of ""
+    :param phase: Phase of "".
+    :param b_prime: Coefficient of d(theta)/dt (measured).
+    :param k_prime: Coefficient of theta (measured).
+    :return: The torque value at time t."""
+
+    # First run code
+    run = 0
+    talk.set_k_b_primes(k_prime, b_prime)  # todo check value and dimensions of each
+    # todo set amplitude, phase and omega_d also
+    theta_sim = []
+    omega_sim = []
+    nr_func = []
+
+    # torque = analytic_torque(t, omega_ds, amplitudes, phases)
+
+    # The DAC works by feeding true voltages from 0 to 4095 for 12-bit
+    # resolution. Various frequencies are handled by calling the get_torque
+    # function in the Arduino script with the step size of dt = T/120,
+    # where T is the desired period of the sine waveform. One facet of this C
+    # code is that measurement is only performed 120 times every wave,
+    # rather than being separate from the analytic torque's period. So calling
+    # this generator at this rate would allow the pendulum motion to be
+    # simulated. Note that the internal step size for the ode iterator is
+    # different from the set dt.
+    # TODO make sure that varying dt does not affect accuracy of the iterator!
+
+    # Connect to Arduino code here! Measure and return the value of theta and
+    # omega at this time. Consider changing this function to a generator to
+    # retain previous values of measured theta and omega.
+    while True:
+        # get mu and dmudt and func. convert to actual values.
+        run += 1
+        func = talk.get_torque  # change
+        mu = 0  # change
+        dmudt = 0  # change
+        theta_sim.append(mu)
+        omega_sim.append(dmudt)
+        nr_func.append(func)
+        yield nr_func  # change to reflect some time delay.

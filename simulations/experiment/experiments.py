@@ -13,7 +13,7 @@ import measurement as m
 import conditional_pend as c
 import plotter as p
 import theory as t
-#import c_talker as talk
+# import c_talker as talk
 
 
 class Experiment:
@@ -573,8 +573,10 @@ class NRRegimesPython(Experiment):
     domain for one set of control parameters, allowing for variable noise and 
     delays to be introduced at any stage. Uses only Python."""
 
-    def __init__(self):
-        super(NRRegimesPython, self).__init__()
+    def __init__(self, config=None):
+        """Create the variables to perform the ODE numerical integration with 
+        feedback."""
+        super(NRRegimesPython, self).__init__(config=config)
 
         # set initial parameters
         self.i = self.prms['i']
@@ -624,6 +626,8 @@ class NRRegimesPython(Experiment):
         return self.total_torque
 
     def _get_readings(self, current_time):
+        """Get a single value of torque, theta_sim, and omega_sim, given the 
+        current time."""
         current_reading = np.array(
             [current_time, self.total_torque, self.theta_sim, self.omega_sim])
         for i in range(len(current_reading)):
@@ -635,14 +639,18 @@ class NRRegimesPython(Experiment):
         return np.array(current_reading)
 
     def main_operation(self):
-        """Run the ODE integrator for the system in question."""
+        """Run the ODE integrator for the system in question and save the 
+        plots."""
+        self._log('Initial parameters set.')
         r = ode(c.f_full_torque, c.jac).set_integrator(
             'vode', max_step=self.dt/10)
+
         torque_index = 0
         self._update_torque(self.y0[0], torque_index)
         r.set_initial_value(self.y0, self.t0).set_f_params(
             self.i, self.b, self.k, self._get_recent_torque).set_jac_params(
             self.i, self.b, self.k)
+        self._log('ODE object created.')
 
         results = [[*self.t0, *self.y0]]
         sim_result_compare = []
@@ -651,6 +659,7 @@ class NRRegimesPython(Experiment):
             y = np.real(r.integrate(t_now))
             data_point = [*t_now, *y]
             results.append(data_point)
+            self._log('Integration step.')
 
             # Get the last set of consecutive points where the torque has the
             # same value as the current one every cycle. If the corresponding
@@ -666,6 +675,7 @@ class NRRegimesPython(Experiment):
                                            self.torques[-1, -1]])
                 r.set_initial_value(y, t_now).set_f_params(
                     self.i, self.b, self.k, self._get_recent_torque)
+                self._log('Torque updated.')
 
         results = np.array(results).squeeze()
         sim_result_compare = np.array(sim_result_compare).squeeze()
@@ -682,6 +692,7 @@ class NRRegimesPython(Experiment):
             " {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
                 self.dt, self.b, self.b_prime, self.k, self.k_prime, self.i,
                 self.y0, self.t0, self.t_fin, self.g_0, self.w_d))
+        self._log('Calculate theoretical solution.')
 
         # Find absolute errors and plot.
         iterator_diffs = m.calc_norm_errs(
@@ -699,15 +710,33 @@ class NRRegimesPython(Experiment):
                [self.torques[:, 0], self.torques[:, 3]]],
               [[results[:, 0], iterator_diffs[1]],
                [sim_result_compare[:, 0], simulated_diffs[1]]]]]
-        p.two_by_n_plotter(real_space_data, 'test', self.prms, show=True)
+        self._log('Found errors.')
+
+        p.two_by_n_plotter(
+            real_space_data, self.filename, self.prms, savepath=self.plotpath,
+            show=False, x_axes_labels=['t/s', 't/s'], tag='NR-no-noise',
+            y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
+            y_bottom_labels=[r'$\Delta\theta$/rad',
+                             r'$\Delta\dot{\theta}$/rad/s'])
+        self._log('Plotted and saved.')
 
         exp_results = pd.DataFrame(results, columns=['t', 'theta', 'omega'])
         torques = pd.DataFrame(self.torques, columns=[
             't', 'total torque', 'theta_sim', 'omega_sim'])
-
+        self._log('Created data frames.')
         return {'displacements': exp_results, 'measured-vals': torques}
 
 
 if __name__ == '__main__':
-    n1 = NRRegimesPython()
-    n1.run()
+    config_dict = h.yaml_read('../configs/NRRegimesPython.yaml')
+    for w_d in np.arange(12, 140, 5):
+        config_dict['w_d'] = np.array([w_d])
+        print("Started w_d = {}".format(w_d))
+        n1 = NRRegimesPython(config=config_dict)
+        n1.run()
+
+# TODO note down the config for the Python experiment, including the type of
+# TODO integrator used and the behaviour of speed for high frequencies - the
+# frequency does not match the actual frequency (slightly lower - check).
+# Largely speaking this does not matter, but does explain why the errors are so
+# large.
