@@ -95,7 +95,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
     plot_name, descrip_name = _create_names(start, tag)
     if savepath is not None:
         # Save only if save path is not none.
-        fig.savefig(savepath + plot_name, dpi=600)
+        fig.savefig(savepath + plot_name, dpi=300)
         with open(savepath + descrip_name, 'w') as f:
             for key in params_dict:
                 if type(params_dict[key]) is np.ndarray:

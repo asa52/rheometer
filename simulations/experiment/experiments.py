@@ -799,12 +799,16 @@ class FFTwNR(Experiment):
             # for low frequencies, the length of time of the signal must also
             # be sufficiently wrong for the peak position to be measured
             # properly.
+            input('s')
             self._log('before mmts')
             # Half-amplitude of peak used to calculate bandwidth.
             freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
+            input('w')
             amp = m.calc_one_amplitude(exp[:, 1][(times >= ss_times[0]) *
                                                  (times <= ss_times[1])])
+            input('q')
             phase = m.calc_phase(exp[:, 1], torque)
+            input('t')
             self._log('after mmts')
             print("data", freq, amp, phase)
             return True, exp, np.array([freq, amp, phase])
