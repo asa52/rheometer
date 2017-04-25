@@ -690,6 +690,7 @@ class NRRegimesPython(Experiment):
 
         results = np.array(results).squeeze()
         sim_result_compare = np.array(sim_result_compare).squeeze()
+        del r
 
         if plot:
             # Calculate theoretical results.
