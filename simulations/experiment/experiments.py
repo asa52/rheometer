@@ -6,6 +6,8 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.integrate import ode
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 import helpers as h
@@ -918,12 +920,13 @@ class FFTwNR(Experiment):
 
 
 if __name__ == '__main__':
-    #configs = h.yaml_read('../configs/NRRegimesPython.yaml')
-    #for divider in [10, 50, 100, 200]:
-    #    configs['max_step_divider'] = divider
-    #    real_space = NRRegimesPython(config=configs)
-    fft_nr = FFTwNR()
-    fft_nr.run()
+    configs = h.yaml_read('../configs/NRRegimesPython.yaml')
+    for divider in [10, 50, 100, 200]:
+        configs['max_step_divider'] = divider
+        real_space = NRRegimesPython(config=configs)
+        real_space.run()
+    #fft_nr = FFTwNR()
+    #fft_nr.run()
 
 # TODO note down the config for the Python experiment, including the type of
 # TODO integrator used and the behaviour of speed for high frequencies - the
