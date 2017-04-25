@@ -8,7 +8,6 @@ import scipy.signal as sg
 
 import helpers as h
 from helpers import check_types_lengths
-from theory import find_w2_gamma
 
 
 def calc_fft(x_axis, y_axis):
@@ -25,7 +24,7 @@ def calc_fft(x_axis, y_axis):
     return freqs, full_fft_y
 
 
-def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.95, tol=0.005,
+def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.005,
                 max_increase=0.0001):
     """Calculate the x range over which the FFT of y is in the steady state, 
     which means the normalised correlation between consecutive data segments is 
@@ -33,7 +32,7 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.95, tol=0.005,
     uniformly spaced."""
 
     if n_per_segment is None:
-        n_per_segment = int(len(x_axis) / 400)
+        n_per_segment = int(len(x_axis) / 75)
 
     # Get consecutive correlations.
     xs, correlations = _norm_correlations(x_axis, y_axis, n_per_segment)
@@ -51,10 +50,28 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.95, tol=0.005,
     within_tol = np.absolute(diffs) <= tol
     within_tol = np.insert(within_tol, 0, [False])
     valid_corr = correlations[exceeds_min * within_tol]
+    plt.plot(correlations)
+    plt.show()
     assert np.absolute(np.mean(valid_corr - np.mean(valid_corr))) < \
-           max_increase, "Steady state not reached - correlations are changing."
+        max_increase, "Steady state not reached - correlations are changing."
     ss_points = xs[exceeds_min * within_tol]
     return min(ss_points), max(ss_points)
+
+
+def enter_ss_times(x_axis, y_axis):
+    """Enter the times at which the displacements are steady state manually 
+    and return the minimum and maximum."""
+    plt.plot(x_axis, y_axis)
+    plt.show()
+    ss_times = input('Enter the time range over which the signal is steady '
+                     'state.')
+    ss_times = ss_times.split(' ')
+    if len(ss_times) == 1:
+        return float(ss_times[0]), x_axis[-1]
+    elif len(ss_times) == 2:
+        return float(ss_times[0]), float(ss_times[1])
+    else:
+        raise Exception('Invalid format.')
 
 
 def get_peak_pos(max_peaks, x_axis, y_axis):
@@ -194,7 +211,7 @@ def check_nyquist(time_array, w_d, b, b_prime, k, k_prime, i):
     frequency and the transient frequency calculated from the remaining 
     parameters."""
     # At any time, the signal will consist of noise + PI + transient.
-    w2 = find_w2_gamma(b - b_prime, k - k_prime, i)[0]
+    w2 = (k - k_prime)/i - (b - b_prime)**2/(2*i**2) + 0j
     w_res = 0
     if w2 < 0:
         w_res = np.sqrt(-w2)  # transient oscillates
@@ -311,8 +328,9 @@ def _norm_correlations(x_axis, y_axis, n_per_segment):
 if __name__ == '__main__':
     t = np.linspace(0, 1000, 10000)
     amp = np.sin(t) + np.sin(2 * t)
-    plt.plot(t, amp)
-    plt.show()
-    filtered_amps = remove_one_frequency(t, amp, 1)
-    plt.plot(t, np.real(filtered_amps), t, np.imag(filtered_amps))
-    plt.show()
+    #plt.plot(t, amp)
+    #plt.show()
+    #filtered_amps = remove_one_frequency(t, amp, 1)
+    #plt.plot(t, np.real(filtered_amps), t, np.imag(filtered_amps))
+    #plt.show()
+    print(enter_ss_times(t, amp))
