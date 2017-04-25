@@ -921,9 +921,11 @@ class FFTwNR(Experiment):
 
 configs = h.yaml_read('../configs/NRRegimesPython.yaml')
 for divider in [10, 50, 100, 200]:
-    configs['max_step_divider'] = divider
-    real_space = NRRegimesPython(config=configs)
-    real_space.run()
+    for w_d in np.arange(120, 150, 5):
+        configs['max_step_divider'] = divider
+        configs['w_d'] = w_d
+        real_space = NRRegimesPython(config=configs)
+        real_space.run(plot=False)
 #fft_nr = FFTwNR()
 #fft_nr.run()
 
@@ -932,3 +934,5 @@ for divider in [10, 50, 100, 200]:
 # frequency does not match the actual frequency (slightly lower - check).
 # Largely speaking this does not matter, but does explain why the errors are so
 # large.
+
+# TODO write code to graph the CSV datafiles created by this code on MCS.
