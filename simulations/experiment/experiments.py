@@ -846,7 +846,7 @@ class FFTwNR(Experiment):
             w_res = np.sqrt(w2_res)
         else:
             w_res = 0
-        w_range = np.linspace(w_res - width, w_res + width, 100)
+        w_range = np.linspace(w_res - width, w_res + width, 20)
         single_run = h.baker(self._single_operation,
                              ['', '', '', '', '', '', '', '', '', t0, y0, tfin],
                              pos_to_pass_through=(0, 8))
@@ -920,10 +920,10 @@ class FFTwNR(Experiment):
 
 
 configs = h.yaml_read('../configs/NRRegimesPython.yaml')
-for divider in [10, 50, 100, 200]:
+for divider in [50, 100, 200]:
     for w_d in np.arange(120, 150, 5):
-        configs['max_step_divider'] = divider
-        configs['w_d'] = w_d
+        configs['max_step_divider'] = np.array([divider])
+        configs['w_d'] = np.array([w_d])
         real_space = NRRegimesPython(config=configs)
         real_space.run(plot=False)
 #fft_nr = FFTwNR()
