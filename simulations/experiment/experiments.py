@@ -741,12 +741,12 @@ class NRRegimesPython(Experiment):
         return {'displacements': exp_results, 'measured-vals': torques}
 
 
-class FFTwNR(Experiment):
+class FFT_results(Experiment):
     """Compare the accuracy of the measurement functions to the theoretically 
     expected measurements."""
 
     def __init__(self, config=None, filename=None, description=None):
-        super(FFTwNR, self).__init__(config, filename, description)
+        super(FFT_results, self).__init__(config, filename, description)
 
     def _single_operation(self, b, k, i, b_prime, k_prime, w_d, g_0_mag,
                           phase, n_frq_peak, t0, y0, tfin):

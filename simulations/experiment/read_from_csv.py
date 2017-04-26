@@ -8,6 +8,9 @@ from os import listdir
 from os.path import isfile, join
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import groupby
+from operator import itemgetter
+
 
 def find_files(directory, check_type='.csv'):
     """Find all the files, non-recursively, in the directory, of the 
@@ -49,28 +52,46 @@ def get_configs(directory, filename_root):
     return config_dict
 
 
-def main():
-    directory = '../../../Tests/ExperimentClasses/NRRegimesPython/'
+def read_all_data(directory):
     filename_roots = get_filename_roots(directory)
     outputs = []
     for root in filename_roots:
-        one_set = list([])
-        one_set.append(get_configs(directory, root))
-        disps = pd.read_csv('{}{}displacements.csv'.format(directory, root),
-                            index_col=0)
-        torques = pd.read_csv('{}{}measured-vals.csv'.format(directory, root),
-                              index_col=0)
-        one_set.append(disps)
-        one_set.append(torques)
-        print(one_set)
-        outputs.append(one_set)
-        plt.plot(disps['t'], disps['theta'])
-        plt.plot(torques['t'], torques['theta_sim'])
-        plt.show()
-        input()
+        param_dict = get_configs(directory, root)
+        param_dict['disps'] = pd.read_csv('{}{}displacements.csv'.format(
+            directory, root), index_col=0)
+        param_dict['torques'] = pd.read_csv('{}{}measured-vals.csv'.format(
+            directory, root), index_col=0)
+        outputs.append(param_dict)
+    return outputs
+
+
+def sort_data(directory, sort_by=('b', 'phi', "b'", 't0', 'k', 'omega_0',
+                                  'tfin', 'i', "k'", 'g_0_mag', 'theta_0')):
+    """Sort data by grouping according to same parameter values. ADD more 
+    here if new parameters added."""
+    all_data = read_all_data(directory)
+    grouper = itemgetter(*sort_by)
+    sets = []
+    for group in groupby(sorted(all_data, key=grouper), key=grouper):
+        same_parameters = []
+        for element in group[1]:
+            same_parameters.append(element)
+        sets.append(same_parameters)
+    return sets
 
 
 if __name__ == '__main__':
-    main()
+    directory = '../../../Tests/ExperimentClasses/NRRegimesPython/'
+    grouped_sets = sort_data(directory)
+    for group in grouped_sets:
+        # a list of dictionaries with the same parameter values except for w_d.
+        for dataset in group:
+            # one dictionary with real space data and torque values.
+            disps = dataset['disps']
+            torques = dataset['torques']
+            print(disps)
+            input()
+            print(torques)
+            input()
 
 # todo calculate analytic torque by reading the torque and log files.
