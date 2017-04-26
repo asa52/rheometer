@@ -66,12 +66,16 @@ def enter_ss_times(x_axis, y_axis):
     ss_times = input('Enter the time range over which the signal is steady '
                      'state.')
     ss_times = ss_times.split(' ')
-    if len(ss_times) == 1:
-        return float(ss_times[0]), x_axis[-1]
-    elif len(ss_times) == 2:
-        return float(ss_times[0]), float(ss_times[1])
-    else:
-        raise Exception('Invalid format.')
+    while True:
+        if len(ss_times) == 1 and type(ss_times[0]) is not str:
+            return float(ss_times[0]), x_axis[-1]
+        elif len(ss_times) == 2 and type(ss_times[0]) is not str:
+            return float(ss_times[0]), float(ss_times[1])
+        elif ss_times[0] == 'none':
+            # ss not reached.
+            return False
+        else:
+            print('Invalid answer.')
 
 
 def get_peak_pos(max_peaks, x_axis, y_axis):

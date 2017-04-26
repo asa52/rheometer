@@ -790,26 +790,31 @@ class FFTwNR(Experiment):
             input(':')
             print(exp)
             input('d')
-            # TODO change the tolerance. Also note that when the window is
-            # comparable to the period, the correlation changes significantly
-            # as you move across. Consider adjusting the window size when
-            # this occurs.
-            self._log('before fft')
-            frq, fft_theta = m.calc_fft(
-                times[(times >= ss_times[0]) * (times <= ss_times[1])],
-                exp[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
-            # for low frequencies, the length of time of the signal must also
-            # be sufficiently wrong for the peak position to be measured
-            # properly.
-            self._log('before mmts')
-            # Half-amplitude of peak used to calculate bandwidth.
-            freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
-            amp = m.calc_one_amplitude(exp[:, 1][(times >= ss_times[0]) *
-                                                 (times <= ss_times[1])])
-            phase = m.calc_phase(exp[:, 1], torque)
-            self._log('after mmts')
-            print("data", freq, amp, phase)
-            return True, exp, np.array([freq, amp, phase])
+
+            if ss_times is not False:
+                # TODO change the tolerance. Also note that when the window is
+                # comparable to the period, the correlation changes significantly
+                # as you move across. Consider adjusting the window size when
+                # this occurs.
+                self._log('before fft')
+                frq, fft_theta = m.calc_fft(
+                    times[(times >= ss_times[0]) * (times <= ss_times[1])],
+                    exp[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
+                # for low frequencies, the length of time of the signal must also
+                # be sufficiently wrong for the peak position to be measured
+                # properly.
+                self._log('before mmts')
+                # Half-amplitude of peak used to calculate bandwidth.
+                freq = m.calc_freqs(np.absolute(fft_theta), frq,
+                                    n_peaks=n_frq_peak)
+                amp = m.calc_one_amplitude(exp[:, 1][(times >= ss_times[0]) *
+                                                     (times <= ss_times[1])])
+                phase = m.calc_phase(exp[:, 1], torque)
+                self._log('after mmts')
+                print("data", freq, amp, phase)
+                return True, exp, np.array([freq, amp, phase])
+            else:
+                return False, exp
         else:
             return False, exp
 
@@ -928,6 +933,13 @@ for divider in [50, 100, 200]:
         real_space.run(plot=False)
 #fft_nr = FFTwNR()
 #fft_nr.run()
+
+#if __name__ == '__main__':
+#    configs = h.yaml_read('../configs/NRRegimesPython.yaml')
+#    for w_d in np.arange(12, 140, 2):
+#        configs['w_d'] = np.array([w_d])
+#        real_space = NRRegimesPython(config=configs)
+#        real_space.run()
 
 # TODO note down the config for the Python experiment, including the type of
 # TODO integrator used and the behaviour of speed for high frequencies - the
