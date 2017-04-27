@@ -2,6 +2,10 @@
 to do with the Physics."""
 
 import time
+from genericpath import isfile
+from os import listdir
+from os.path import join
+
 import numpy as np
 import yaml
 
@@ -216,6 +220,15 @@ def find_consec_indices(arr):
         elif i == len(index_lists) - 1:
             # Not found anywhere
             raise Exception('Panic.')
+
+
+def find_files(path, check_type='.csv'):
+    """Find all the files of the specified type, non-recursively, in the 
+    directory specified. Returns a list of the file names."""
+    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+    if check_type is not None:
+        onlyfiles = [f for f in onlyfiles if f[-len(check_type):] == check_type]
+    return onlyfiles
 
 
 def _check_iterable(variable):

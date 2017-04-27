@@ -3,11 +3,10 @@ being processed."""
 
 import matplotlib.pyplot as plt
 import numpy as np
-# import pyfftw
+import pyfftw
 import scipy.signal as sg
 
 import helpers as h
-from helpers import check_types_lengths
 
 
 def calc_fft(x_axis, y_axis):
@@ -31,6 +30,11 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.005,
     greater than min_lim and within tol of the previous. x should be 
     uniformly spaced."""
 
+    # TODO adjust the tolerance as needed.
+    # Also note that when the window is comparable to the period, the
+    # correlation changes significantly as you move across. Consider adjusting
+    # the window size when this occurs.
+
     if n_per_segment is None:
         n_per_segment = int(len(x_axis) / 75)
 
@@ -50,8 +54,6 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.005,
     within_tol = np.absolute(diffs) <= tol
     within_tol = np.insert(within_tol, 0, [False])
     valid_corr = correlations[exceeds_min * within_tol]
-    plt.plot(correlations)
-    plt.show()
     assert np.absolute(np.mean(valid_corr - np.mean(valid_corr))) < \
         max_increase, "Steady state not reached - correlations are changing."
     ss_points = xs[exceeds_min * within_tol]
@@ -63,19 +65,28 @@ def enter_ss_times(x_axis, y_axis):
     and return the minimum and maximum."""
     plt.plot(x_axis, y_axis)
     plt.show()
-    ss_times = input('Enter the time range over which the signal is steady '
-                     'state.')
-    ss_times = ss_times.split(' ')
+
     while True:
-        if len(ss_times) == 1 and type(ss_times[0]) is not str:
-            return float(ss_times[0]), x_axis[-1]
-        elif len(ss_times) == 2 and type(ss_times[0]) is not str:
-            return float(ss_times[0]), float(ss_times[1])
-        elif ss_times[0] == 'none':
-            # ss not reached.
-            return False
-        else:
-            print('Invalid answer.')
+        ss_times = input('Enter the time range over which the signal is steady '
+                         'state.')
+        ss_times = ss_times.split(' ')
+        print(ss_times)
+
+        try:
+            if ss_times[0] == 'none':
+                # ss not reached.
+                return False
+            elif len(ss_times) == 1:
+                return float(ss_times[0]), x_axis[-1]
+            elif len(ss_times) == 2:
+                return float(ss_times[0]), float(ss_times[1])
+            else:
+                print('Invalid answer.')
+
+        except ValueError:
+            # Ignore answers of the wrong format, just ask again until the
+            # correct answer is given.
+            pass
 
 
 def get_peak_pos(max_peaks, x_axis, y_axis):
@@ -245,7 +256,7 @@ def calc_norm_errs(*datasets):
     for dataset in datasets:
         assert len(dataset) == 2, "There can only be two data series per " \
                                   "dataset!"
-        exp, theory = check_types_lengths(dataset[0], dataset[1])
+        exp, theory = h.check_types_lengths(dataset[0], dataset[1])
 
         err = exp - theory
         errs.append(err)
@@ -338,3 +349,37 @@ if __name__ == '__main__':
     #plt.plot(t, np.real(filtered_amps), t, np.imag(filtered_amps))
     #plt.show()
     print(enter_ss_times(t, amp))
+
+
+def one_mmt_set(times, theta, omega, torque, b, b_prime, k, k_prime, i):
+    """Measure one set of frequency, amplitude and phase values, given the 
+    values of the relevant parameters."""
+    w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (
+        2 * i ** 2) + 0j)
+
+    if b - b_prime >= 0:
+        if b - b_prime == 0 and np.isreal(w_res):
+            # filter out the transient frequency if it will never
+            # decay on its own.
+            theta = remove_one_frequency(times, theta, w_res)
+
+        # Will only reach steady state if b - b' >=0, otherwise no
+        # point making a response curve. b - b' = 0 has two steady state
+        # frequencies, the transient and PI. Eliminate the transient first.
+        ss_times = enter_ss_times(times, theta)
+        # m.identify_ss(times, exp[:, 1])
+
+        if ss_times is not False:
+            frq, fft_theta = calc_fft(
+                times[(times >= ss_times[0]) * (times <= ss_times[1])],
+                theta[(times >= ss_times[0]) * (times <= ss_times[1])])
+            # for low frequencies, the length of time of the signal
+            # must also be sufficiently wrong for the peak position
+            # to be measured properly.
+
+            # Half-amplitude of peak used to calculate bandwidth.
+            freq = calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
+            amp = calc_one_amplitude(
+                theta[(times >= ss_times[0]) * (times <= ss_times[1])])
+            phase = calc_phase(theta, torque)
+            return np.array([freq, amp, phase])

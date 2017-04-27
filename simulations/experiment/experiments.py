@@ -3,18 +3,19 @@ set of data, which can then be stored in a file."""
 
 import os
 import time
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.integrate import ode
-import matplotlib as mpl
-mpl.use('pdf')
-import matplotlib.pyplot as plt
 
+import conditional_pend as c
 import helpers as h
 import measurement as m
-import conditional_pend as c
 import plotter as p
 import theory as t
+
+
 # import c_talker as talk
 
 
@@ -62,7 +63,7 @@ class Experiment:
     def run(self, tags=False, savedata=True, plot=True):
         """Run the experiment and get a set of results. Save at the end if 
         specified. Start timer and log runtime always, in a separate logging 
-        file. If not auto_save, ask for comments before saving. Save the 
+        file. Save the 
         range of parameters run for at the top in summarised form. The dict 
         of data frames from main_operation is saved in a separate file each."""
 
@@ -263,8 +264,8 @@ class MeasuringAccuracy(Experiment):
 
         theory_amps = np.absolute(fft_theory[:, -1])
         theory_phases = np.angle(fft_theory[:, -1])
-        amp_err, phase_err = m.calc_norm_errs([amps[:, 0], theory_amps],
-                                              [phases[:, 0], theory_phases])[0]
+        amp_err, phase_err = m.calc_norm_errs(
+            [amps[:, 0], theory_amps], [phases[:, 0], theory_phases])[0]
 
         theory_n_mmt = \
             [[[[ang_freqs, theory_amps], [ang_freqs, amps]],
@@ -284,9 +285,10 @@ class MeasuringAccuracy(Experiment):
                              r'Fractional error in $\phi$'])
         self._log('after plot')
 
-    def run(self, tags=None, savedata=False):
+    def run(self, tags=None, savedata=False, plot=False):
         # Don't save data.
-        super(MeasuringAccuracy, self).run(tags=tags, savedata=savedata)
+        super(MeasuringAccuracy, self).run(tags=tags, savedata=savedata,
+                                           plot=plot)
 
 
 class TheoryVsSimulation(Experiment):
@@ -296,7 +298,7 @@ class TheoryVsSimulation(Experiment):
     def __init__(self):
         super(TheoryVsSimulation, self).__init__()
 
-    def main_operation(self):
+    def main_operation(self, plot=None):
         # Define the initial and setup conditions.
         t0 = self.prms['t0']
         t_fin = self.prms['t_fin']
@@ -728,7 +730,7 @@ class NRRegimesPython(Experiment):
 
             p.two_by_n_plotter(
                 real_space_data, self.filename, self.prms, savepath=self.plotpath,
-                show=False, x_axes_labels=['t/s', 't/s'], tag='NR-no-noise',
+                show=True, x_axes_labels=['t/s', 't/s'], tag='NR-no-noise',
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
@@ -741,196 +743,13 @@ class NRRegimesPython(Experiment):
         return {'displacements': exp_results, 'measured-vals': torques}
 
 
-class FFT_results(Experiment):
-    """Compare the accuracy of the measurement functions to the theoretically 
-    expected measurements."""
-
-    def __init__(self, config=None, filename=None, description=None):
-        super(FFT_results, self).__init__(config, filename, description)
-
-    def _single_operation(self, b, k, i, b_prime, k_prime, w_d, g_0_mag,
-                          phase, n_frq_peak, t0, y0, tfin):
-        """One run for one value of b, k, i, b_prime, k_prime, 
-        torque_amplitude, torque_phase, torque_frequency and noise. t is a time 
-        array."""
-
-        # Initial conditions
-        configs = {'t0': t0, 'theta_0': y0[0], 'omega_0': y0[1], 'tfin': tfin,
-                   'i': i, 'b': b, 'k': k, 'b\'': b_prime, 'k\'': k_prime,
-                   'g_0_mag': g_0_mag, 'w_d': w_d, 'phi': phase,
-                   'max_step_divider': 10}  # consider changing
-        print(configs)
-        # Nyquist does not need to be checked as all times are internally
-        # determined. Create a NR experiment object to find the response
-        # curve for.
-
-        self._log('Before real space run')
-        with NRRegimesPython(config=configs) as nr_against_time:
-            exp = nr_against_time.run(plot=False, savedata=False)[
-                'displacements'].as_matrix()
-
-        self._log('After real space run.')
-        times = exp[:, 0].squeeze()
-        # TODO change to what toe torque actually was
-        torque = g_0_mag * np.sin(w_d * times + phase)
-        w_res = np.sqrt((k - k_prime)/i - (b - b_prime)**2/(2*i**2) + 0j)
-
-        if b - b_prime >= 0:
-            if b - b_prime == 0 and np.isreal(w_res):
-                # filter out the transient frequency.
-                exp[:, 1] = m.remove_one_frequency(times, exp[:, 1], w_res)
-                exp[:, 2] = m.remove_one_frequency(times, exp[:, 2], w_res)
-
-            # Will only reach steady state if this is the case, otherwise no
-            # point making a response curve. Measure one point. b - b' = 0
-            # has two steady state frequencies, the transient and PI.
-            ss_times = m.enter_ss_times(times, exp[:, 1])
-            #m.identify_ss(times, exp[:, 1])
-            print(ss_times)
-            input(':')
-            print(exp)
-            input('d')
-
-            if ss_times is not False:
-                # TODO change the tolerance. Also note that when the window is
-                # comparable to the period, the correlation changes significantly
-                # as you move across. Consider adjusting the window size when
-                # this occurs.
-                self._log('before fft')
-                frq, fft_theta = m.calc_fft(
-                    times[(times >= ss_times[0]) * (times <= ss_times[1])],
-                    exp[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
-                # for low frequencies, the length of time of the signal must also
-                # be sufficiently wrong for the peak position to be measured
-                # properly.
-                self._log('before mmts')
-                # Half-amplitude of peak used to calculate bandwidth.
-                freq = m.calc_freqs(np.absolute(fft_theta), frq,
-                                    n_peaks=n_frq_peak)
-                amp = m.calc_one_amplitude(exp[:, 1][(times >= ss_times[0]) *
-                                                     (times <= ss_times[1])])
-                phase = m.calc_phase(exp[:, 1], torque)
-                self._log('after mmts')
-                print("data", freq, amp, phase)
-                return True, exp, np.array([freq, amp, phase])
-            else:
-                return False, exp
-        else:
-            return False, exp
-
-    def main_operation(self, plot=True):
-        # feed in fixed b - b', k - k', torque, i, noise level and type,
-        # but a range of driving frequencies to test.
-
-        b_s = self.prms['b_s']
-        k_s = self.prms['k_s']
-        i_s = self.prms['i_s']
-        b_primes = self.prms['b\'s']
-        k_primes = self.prms['k\'s']
-        w_ds = np.arange(self.prms['w_d_start'], self.prms['w_d_final'],
-                         self.prms['w_d_step'])
-        g_0_mags = self.prms['g0s']
-        phases = self.prms['phis']
-        t0 = self.prms['t0'].squeeze()
-        y0 = np.array([self.prms['theta_0'], self.prms[
-            'omega_0']]).squeeze()
-        tfin = self.prms['tfin']
-        self._log('after config setup')
-
-        # Get the theoretical position of the peak and generate a finely
-        # spaced set of frequency points around it to measure with greater
-        # resolution here.
-        w2_res = (k_s - k_primes) / i_s - (b_s - b_primes) ** 2 / (2 * i_s **
-                                                                   2) + 0j
-        gamma = (b_s - b_primes)/i_s
-
-        # 5 * bandwidth on either side
-        gamma = np.absolute(gamma)
-        width = 5 * gamma if gamma != 0 else self.prms['w_d_step']
-        if w2_res >= 0:
-            w_res = np.sqrt(w2_res)
-        else:
-            w_res = 0
-        w_range = np.linspace(w_res - width, w_res + width, 20)
-        single_run = h.baker(self._single_operation,
-                             ['', '', '', '', '', '', '', '', '', t0, y0, tfin],
-                             pos_to_pass_through=(0, 8))
-
-        ws = [w_ds, w_range]
-        self._log('after baker function')
-        for j in range(len(ws)):
-            all_times = h.all_combs(single_run, b_s, k_s, i_s, b_primes,
-                                    k_primes, ws[j], g_0_mags, phases, 1)
-            print("all data in w set measured.")
-            self._log('after all combs run')
-            # final argument 1/2 for 1 frequency peak expected.
-            fft_data = []
-            real_data = []
-            for i in range(len(all_times)):
-                real_data.append(all_times[i][-1][1])
-                if all_times[i][-1][0]:
-                    fft_data.append(all_times[i][-1][-1])
-            if j == 0:
-                fft_mmts = np.array(fft_data)
-
-                # Get the theoretical response curves. Note that w is the only
-                # array.
-                # fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s,
-                #                                   i_s, b_primes, k_primes,
-                #                                   ws[j]))
-
-            else:
-                fft_mmts = np.append(fft_mmts, np.array(fft_data), axis=0)
-                fft_mmts = fft_mmts[fft_mmts[:, 0, 0].argsort()]
-
-                # fft_theory = np.append(fft_theory, np.array(h.all_combs(
-                #     t.theory_response, b_s, k_s, i_s, b_primes, k_primes,
-                #     ws[j])), axis=0)
-                # fft_theory = fft_theory[fft_theory[:, -2].argsort()]
-
-            self._log('after fft setup')
-        ang_freqs = np.array([fft_mmts[:, 0, 0],
-                              fft_mmts[:, 0, 1]]).T * 2 * np.pi
-        amps = np.array([fft_mmts[:, 1, 0], fft_mmts[:, 1, 1]]).T / g_0_mags
-        phases = np.array([fft_mmts[:, 2, 0], fft_mmts[:, 2, 1]]).T
-
-        # For a single set of data, get the transfer function once only. This
-        # allows error to be calculated as specifically the experimental
-        # ang_freqs are used.
-        fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s, i_s,
-                                          b_primes, k_primes, ang_freqs[:, 0]))
-
-        theory_amps = np.absolute(fft_theory[:, -1])
-        theory_phases = np.angle(fft_theory[:, -1])
-        amp_err, phase_err = m.calc_norm_errs([amps[:, 0], theory_amps],
-                                              [phases[:, 0], theory_phases])[0]
-
-        theory_n_mmt = \
-            [[[[ang_freqs, theory_amps], [ang_freqs, amps]],
-              [[ang_freqs, amp_err]]],
-             [[[ang_freqs, theory_phases], [ang_freqs, phases]],
-              [[ang_freqs, phase_err]]]]
-        self._log('before plot')
-
-        p.two_by_n_plotter(
-            theory_n_mmt, self.filename, self.prms, savepath=self.plotpath,
-            show=False, x_axes_labels=['$\omega$/rad/s', '$\omega$/rad/s'],
-            y_top_labels=[r'$\left|\frac{\theta(\omega)}{G('
-                          r'\omega)}\right|$/rad/(Nm)',
-                          r'$\phi(\frac{\theta(\omega)}{G(\omega)})$/rad'],
-            y_bottom_labels=[r'Fractional error in $\left|\frac{\theta('
-                             r'\omega)}{G(\omega)}\right|$',
-                             r'Fractional error in $\phi$'])
-        self._log('after plot')
-
-
-configs = h.yaml_read('../configs/NRRegimesPython.yaml')
-for divider in [50, 100, 200]:
-    for w_d in np.arange(120, 150, 5):
-        configs['max_step_divider'] = np.array([divider])
-        configs['w_d'] = np.array([w_d])
-        real_space = NRRegimesPython(config=configs)
-        real_space.run(plot=False)
+#configs = h.yaml_read('../configs/NRRegimesPython.yaml')
+#for divider in [50, 100, 200]:
+#    for w_d in np.arange(120, 150, 5):
+#        configs['max_step_divider'] = np.array([divider])
+#        configs['w_d'] = np.array([w_d])
+real_space = NRRegimesPython()
+real_space.run(plot=True)
 #fft_nr = FFTwNR()
 #fft_nr.run()
 
@@ -946,5 +765,3 @@ for divider in [50, 100, 200]:
 # frequency does not match the actual frequency (slightly lower - check).
 # Largely speaking this does not matter, but does explain why the errors are so
 # large.
-
-# TODO write code to graph the CSV datafiles created by this code on MCS.
