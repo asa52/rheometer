@@ -1,21 +1,21 @@
 # Configuration parameters for rotational pendulum.
 # Time interval
 t0:              0.
-t_fin:          10.
-dt:           0.001
+t_fin:           5.
+dt:           0.0005
 
 # Pendulum
-i_s: 1.e-7
+i_s: 5.5e-7
 bs:  5.e-7
-ks:  1.e-6
+ks:  1.e-3
 b_prime:   0.
 k_prime:   0.
 theta_sim: 0.
 omega_sim: 0.
 
 # Variable parameters
-theta_0s: 0.1
+theta_0s: 0.
 omega_0s: 0.
 g_0_mags: 1.e-7
-w_ds:     30.
+w_ds:     41.
 phases:   0.

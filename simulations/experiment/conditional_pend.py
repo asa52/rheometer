@@ -22,7 +22,7 @@ def f_analytic(t, y, i, g_0, b, b_prime, k, k_prime):
 def f_full_torque(t, y, i, b, k, g):
     """RHS of the ODE with only full torque on the RHS. Variables defined as 
     above. Has the same Jacobian as f."""
-    return [y[1], (g(t) - b * y[1] - k * y[0]) / i]
+    return np.array([y[1], (g(t) - b * y[1] - k * y[0]) / i])
 
 
 def jac(t, y, i, b, k):
