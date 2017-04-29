@@ -4,15 +4,15 @@ theta_0: 0.
 omega_0: 0.
 
 # Time interval
-tfin: 10000
-dt: 0.01
+tfin: 100
+dt: 0.005
 
 # Constant parameters at a time.
-i_s:  [.000000001]#, .0000001, .000001]
-b_s:  [.00000001]#, .000000005, .00000001, .00000005, .0000001]
-k_s:  [.0000005]#, .000001, .000005]
-b's:  [.00000001]#, .000000005, .00000001, .00000005, .0000001]
-k's:  [.000000005]#, .000001, .000005]
+i_s:  [1.e-7]#, .0000001, .000001]
+b_s:  [1.e-6]#, .000000005, .00000001, .00000005, .0000001]
+k_s:  [1.e-6]#, .000001, .000005]
+b's:  [0.]#, .000000005, .00000001, .00000005, .0000001]
+k's:  [0.]#, .000001, .000005]
 
 # torque parameters - one at a time.
 g0s: [.0000001]#, .0000005, .000001]
@@ -41,5 +41,5 @@ w_d_final: 145.
 # noise signals).
 noise_type: 'rand_uniform'  # Valid types: rand_uniform, rand_gaussian, 1/f,
                             # burst, band-limited, single-freq.
-noise_param_1: 0.
+noise_amp_ratio_to_torque: 0.001
 noise_param_2: 0.

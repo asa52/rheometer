@@ -4,6 +4,7 @@ being processed."""
 import matplotlib.pyplot as plt
 import numpy as np
 import pyfftw
+import scipy.fftpack as f
 import scipy.signal as sg
 
 import helpers as h
@@ -23,8 +24,8 @@ def calc_fft(x_axis, y_axis):
     return freqs, full_fft_y
 
 
-def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.005,
-                max_increase=0.0001):
+def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.01,
+                max_increase=0.001):
     """Calculate the x range over which the FFT of y is in the steady state, 
     which means the normalised correlation between consecutive data segments is 
     greater than min_lim and within tol of the previous. x should be 
@@ -39,8 +40,9 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.005,
         n_per_segment = int(len(x_axis) / 75)
 
     # Get consecutive correlations.
-    xs, correlations = _norm_correlations(x_axis, y_axis, n_per_segment)
-
+    xs, correlations = norm_correlations(x_axis, y_axis, n_per_segment)
+    #plt.plot(correlations)
+    #plt.show()
     # To work out the range of times that correspond to good steady state
     # values, require that the correlation exceeds 'min_lim' and the gradient
     # varies by no more than 'tol' either side. Find the range of times where
@@ -55,7 +57,10 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.005,
     within_tol = np.insert(within_tol, 0, [False])
     valid_corr = correlations[exceeds_min * within_tol]
     assert np.absolute(np.mean(valid_corr - np.mean(valid_corr))) < \
-        max_increase, "Steady state not reached - correlations are changing."
+        max_increase, "Steady state not reached - correlations are " \
+                      "changing."
+    #plt.plot(xs, correlations)
+    #plt.show()
     ss_points = xs[exceeds_min * within_tol]
     return min(ss_points), max(ss_points)
 
@@ -137,6 +142,8 @@ def calc_one_amplitude(real_disps, bins=None):
     # Get a histogram of the displacement values and find the peaks here,
     # which should occur at the endpoints for a single frequency. This is
     # where the system is slowest (stationary), hence the amplitude.
+    #plt.hist(real_disps, bins=bins)
+    #plt.show()
     results = np.histogram(real_disps, bins=bins)
     num = results[0]
     displacements = results[1]
@@ -179,17 +186,22 @@ def calc_freqs(full_fft_y, freqs, n_peaks=1):
         return peak_pos.squeeze()
 
 
-def calc_phase(real_resp, real_force):
+def calc_phase(real_resp, real_torque):
     """Calculate the phase difference in radians between the displacement and 
     the torque using a Hilbert transform. Signal MUST be monochromatic, 
     so filter first if necessary.
     :param real_resp: The displacement, as an array.
-    :param real_force: The analytic torque, as an array."""
+    :param real_torque: The analytic torque, as an array."""
+    #unnormalised = np.correlate(real_resp, real_torque)
+    #normalised = unnormalised / np.sqrt(np.correlate(real_resp, real_resp) *
+    #                                    np.correlate(real_torque, real_torque))
+    #phases = -np.arccos(normalised), 0
 
     # Make sure y and torque are complex and not absolute-valued.
-    hil_y = sg.hilbert(real_resp)
-    hil_torque = sg.hilbert(real_force)
-    phases = np.angle(hil_y / hil_torque)  # also calculate average and error.
+    hil_y = f.hilbert(real_resp)
+    hil_torque = f.hilbert(real_torque)
+
+    phases = -np.angle(hil_y / hil_torque)  # also calculate average and error.
     return h.combine_quantities(phases, operation='mean')
 
 
@@ -308,9 +320,9 @@ def _calc_stft(x_axis, y_axis, n_per_segment):
     return sg.stft(y_axis, fs, window='boxcar', nperseg=n_per_segment)
 
 
-def _norm_correlations(x_axis, y_axis, n_per_segment):
-    """Get normalised correlations of consecutive y segments with 
-    n_per_segment points per segment."""
+def norm_correlations(x_axis, y_axis, n_per_segment):
+    """Get normalised correlations of consecutive y segments with n_per_segment 
+    points per segment."""
     results = _calc_stft(x_axis, y_axis, n_per_segment)
     freqs = results[0]
     xs = results[1][1:]
@@ -324,7 +336,7 @@ def _norm_correlations(x_axis, y_axis, n_per_segment):
 
     prev_col = np.roll(norm_amps, 1, axis=1)
     norm_by = norm_amps.shape[0] * np.std(norm_amps, ddof=1, axis=0) * \
-              np.std(prev_col, ddof=1, axis=0)
+        np.std(prev_col, ddof=1, axis=0)
 
     # Calculate consecutive normalised correlations.
     correlations = []

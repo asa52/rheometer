@@ -4,24 +4,24 @@ theta_0: 0.
 omega_0: 0.
 
 # Time interval
-tfin:    3.
+tfin:    5.
 
 # Constant parameters at a time.
-i:  1.e-7 #, .0000001, .000001]
-b:  1.e-6   #, .000000005, .00000001, .00000005, .0000001]
-k:  1.e-6    #, .000001, .000005]
-b': 5.e-7   #1.e-9   #, .000000005, .00000001, .00000005, .0000001]
-k': 0.  #, .000001, .000005]
+i:  1.e-7   #, .0000001, .000001]
+b:  5.e-7   #, .000000005, .00000001, .00000005, .0000001]
+k:  9.e-6   #, .000001, .000005]
+b': 0.      #1.e-9   #, .000000005, .00000001, .00000005, .0000001]
+k': 0.      #, .000001, .000005]
 
 # torque parameters - one at a time.
 g_0_mag: 1.e-7  #1.e-7  #, .0000005, .000001]
-w_d:     30.  # driving frequency
-phi:      0.
-max_step_divider: 10
+w_d:     140.    # driving frequency  # todo these parameters need to be run
+phi:     0.
+max_step_divider: 100
 
 # Conversion parameters, from Andreas' Long vac project.
-torque_to_current:      5.5e-9 # Nm per MICRO amp
-torque_to_current_err:  0.9e-9 #Nm per micro amp
+torque_to_current:      5.5e-9  # Nm per MICRO amp
+torque_to_current_err:  0.9e-9  #Nm per micro amp
 
 rad_to_current:         0.0025  # rad per micro amp
 rad_to_current_err:     0.0001  # rad per micro_amp

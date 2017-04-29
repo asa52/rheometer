@@ -1,7 +1,7 @@
 """Plotting functions for the main types of plots I need."""
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 import helpers as h
 
@@ -88,7 +88,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                                             fontweight='bold', fontsize=13)
                 axis.ticklabel_format(useOffset=False)
 
-                if 'legend' in kwargs:
+                if 'legend' in kwargs and label is not None:
                     legend_params = kwargs['legend']
                     axis.legend(**legend_params)
 

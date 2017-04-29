@@ -63,9 +63,9 @@ class Experiment:
     def run(self, tags=False, savedata=True, plot=True):
         """Run the experiment and get a set of results. Save at the end if 
         specified. Start timer and log runtime always, in a separate logging 
-        file. Save the 
-        range of parameters run for at the top in summarised form. The dict 
-        of data frames from main_operation is saved in a separate file each."""
+        file. Save the range of parameters run for at the top in summarised 
+        form. The dict of data frames from main_operation is saved in a separate 
+        file each."""
 
         self.timer.start_timer()
         results = self.main_operation(plot=plot)
@@ -137,6 +137,15 @@ class MeasuringAccuracy(Experiment):
         array."""
 
         times = m.check_nyquist(times, w_d, b, b_prime, k, k_prime, i)
+        decimal_periods = np.abs(5.231 * 2*np.pi/w_d)
+
+        time_index = 0
+        num = 1
+        # The index for 5.231 periods of time being elapsed is used to
+        # calculate the number per segment to use for the autocorrelation.
+        while time_index < 10:
+            time_index = np.abs(times - num * decimal_periods).argmin()
+            num += 1
 
         torque = g_0_mag * np.sin(w_d * times + phase)
         pi_contr = h.baker(t.calculate_sine_pi, [
@@ -157,30 +166,35 @@ class MeasuringAccuracy(Experiment):
             # Will only reach steady state if this is the case, otherwise no
             # point making a response curve. Measure one point. b - b' = 0
             # has two steady state frequencies, the transient and PI.
-            ss_times = m.identify_ss(times, theory[:, 1])
+            ss_times = m.identify_ss(times, theory[:, 1],
+                                     n_per_segment=time_index)
+            #ss_times = m.enter_ss_times(times, theory[:, 1])
             # TODO change the tolerance. Also note that when the window is
             # comparable to the period, the correlation changes significantly
             # as you move across. Consider adjusting the window size when
             # this occurs.
-            self._log('before fft')
-            frq, fft_theta = m.calc_fft(
-                times[(times >= ss_times[0]) * (times <= ss_times[1])],
-                theory[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
-            # for low frequencies, the length of time of the signal must also
-            # be sufficiently wrong for the peak position to be measured
-            # properly.
-            self._log('before mmts')
-            # Half-amplitude of peak used to calculate bandwidth.
-            freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
-            amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
-                                                    (times <= ss_times[1])])
-            phase = m.calc_phase(theory[:, 1], torque)
-            self._log('after mmts')
-            return True, theory, np.array([freq, amp, phase])
+            if ss_times is not False:
+                self._log('before fft')
+                frq, fft_theta = m.calc_fft(
+                    times[(times >= ss_times[0]) * (times <= ss_times[1])],
+                    theory[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
+                # for low frequencies, the length of time of the signal must also
+                # be sufficiently wrong for the peak position to be measured
+                # properly.
+                self._log('before mmts')
+                # Half-amplitude of peak used to calculate bandwidth.
+                freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
+                amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
+                                                        (times <= ss_times[1])])
+                phase = m.calc_phase(theory[:, 1], torque)
+                self._log('after mmts')
+                return True, theory, np.array([freq, amp, phase])
+            else:
+                return False, theory
         else:
             return False, theory
 
-    def main_operation(self):
+    def main_operation(self, plot=False):
         # feed in fixed b - b', k - k', torque, i, noise level and type,
         # but a range of driving frequencies to test.
 
@@ -203,7 +217,7 @@ class MeasuringAccuracy(Experiment):
         # spaced set of frequency points around it to measure with greater
         # resolution here.
         w2_res = (k_s - k_primes) / i_s - (b_s - b_primes) ** 2 / (2 * i_s **
-                                                                   2) + 0j
+                                                                   2)
         gamma = (b_s - b_primes)/i_s
 
         # 5 * bandwidth on either side
@@ -213,7 +227,8 @@ class MeasuringAccuracy(Experiment):
             w_res = np.sqrt(w2_res)
         else:
             w_res = 0
-        w_range = np.linspace(w_res - width, w_res + width, 100)
+        w_range = np.linspace(w_res - width if w_res - width > 2 else 2,
+                              w_res + width, 100)
         single_run = h.baker(self._single_operation,
                              [times, '', '', '', '', '', '', '', '', '', t0,
                               y0], pos_to_pass_through=(1, 9))
@@ -265,24 +280,22 @@ class MeasuringAccuracy(Experiment):
         theory_amps = np.absolute(fft_theory[:, -1])
         theory_phases = np.angle(fft_theory[:, -1])
         amp_err, phase_err = m.calc_norm_errs(
-            [amps[:, 0], theory_amps], [phases[:, 0], theory_phases])[0]
+            [amps[:, 0], theory_amps], [phases[:, 0], theory_phases])[1]
 
         theory_n_mmt = \
             [[[[ang_freqs, theory_amps], [ang_freqs, amps]],
-              [[ang_freqs, amp_err]]],
+              [[ang_freqs, amp_err / np.max(amps[:, 0])]]],
              [[[ang_freqs, theory_phases], [ang_freqs, phases]],
-              [[ang_freqs, phase_err]]]]
+              [[ang_freqs, phase_err / np.max(np.absolute(phases[:, 0]))]]]]
         self._log('before plot')
-
+        print(w_res, gamma)
         p.two_by_n_plotter(
             theory_n_mmt, self.filename, self.prms, savepath=self.plotpath,
             show=False, x_axes_labels=['$\omega$/rad/s', '$\omega$/rad/s'],
-            y_top_labels=[r'$\left|\frac{\theta(\omega)}{G('
-                          r'\omega)}\right|$/rad/(Nm)',
-                          r'$\phi(\frac{\theta(\omega)}{G(\omega)})$/rad'],
-            y_bottom_labels=[r'Fractional error in $\left|\frac{\theta('
-                             r'\omega)}{G(\omega)}\right|$',
-                             r'Fractional error in $\phi$'])
+            y_top_labels=[r'$\left|R(\omega)\right|$/rad/(Nm)',
+                          r'arg[$R(\omega)$]/rad'],
+            y_bottom_labels=[r'Normalised error in $\left|R(\omega)\right|$',
+                             r'Normalised error in arg[$R(\omega)$]'])
         self._log('after plot')
 
     def run(self, tags=None, savedata=False, plot=False):
@@ -333,10 +346,9 @@ class TheoryVsSimulation(Experiment):
         """Compare experiment to theory for one set of parameters and return the 
         difference between the two. Uses only the analytic torque expression."""
         y0 = [theta_0, omega_0]
-        exp_results = c.ode_integrator(y0, t0, i, b_prime, omega_sim, k_prime,
-                                       theta_sim, b, k, g_0_mag, w_d, phase,
-                                       t_fin, dt, c.analytic_torque)
-
+        exp_results = c.ode_integrator(y0, t0, i, b_prime, k_prime, b, k,
+                                       g_0_mag, w_d, phase, t_fin, dt,
+                                       c.analytic_torque)
         # Theoretical calculation.
         sines_torque = h.baker(
             t.calculate_sine_pi, ["", "", "", "", g_0_mag, w_d, phase],
@@ -377,12 +389,13 @@ class TheoryVsSimulation(Experiment):
                       't_fin': t_fin, 'dt': dt}
             p.two_by_n_plotter(
                 plotting_data, self.filename, params, savepath=self.plotpath,
-                show=False, x_axes_labels=['t/s', 't/s'],
+                show=True, x_axes_labels=['t/s', 't/s'],
+                tag='with-uniform-noise-torque-over-100',
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$(\theta_{sim}-\theta_{an})/|\theta_{max}|$',
                                  r'$(\dot{\theta}_{sim}-\dot{\theta}_{an})/'
                                  r'|\dot{\theta}_{max}|$'],
-                legend={'loc': 'upper center', 'bbox_to_anchor': (0.5, 1.4),
+                legend={'loc': 'upper center', 'bbox_to_anchor': (0.5, 1),
                         'ncol': 2})
 
         return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
@@ -591,7 +604,7 @@ class NRRegimesPython(Experiment):
         """Create the variables to perform the ODE numerical integration with 
         feedback."""
         super(NRRegimesPython, self).__init__(config=config)
-
+        self.savepath += 'Varying_dt_max_internal/'
         # set initial parameters
         self.i = self.prms['i']
         self.b = self.prms['b']
@@ -658,7 +671,7 @@ class NRRegimesPython(Experiment):
         plots."""
         self._log('Initial parameters set.')
         r = ode(c.f_full_torque, c.jac).set_integrator(
-            'vode', max_step=self.dt/self.divider)
+            'vode', max_step=self.dt / self.divider)
 
         torque_index = 0
         self._update_torque(self.y0[0], torque_index)
@@ -698,14 +711,14 @@ class NRRegimesPython(Experiment):
         if plot:
             # Calculate theoretical results.
             sines_torque = h.baker(t.calculate_sine_pi,
-                                   ["", "", "", "", self.g_0, self.w_d, self.phi],
-                                   pos_to_pass_through=(0, 3))
+                                   ["", "", "", "", self.g_0, self.w_d,
+                                    self.phi], pos_to_pass_through=(0, 3))
             theory = t.calc_theory_soln(
                 results[:, 0], self.t0, self.y0, self.b - self.b_prime,
                 self.k - self.k_prime, self.i, sines_torque)
             print(
-                "Init parameters: dt: {}, b: {}, b': {}, k: {}, k': {}, I: {}, y0:"
-                " {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
+                "Init parameters: dt: {}, b: {}, b': {}, k: {}, k': {}, I: {}, "
+                "y0: {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
                     self.dt, self.b, self.b_prime, self.k, self.k_prime, self.i,
                     self.y0, self.t0, self.t_fin, self.g_0, self.w_d))
             self._log('Calculate theoretical solution.')
@@ -729,8 +742,9 @@ class NRRegimesPython(Experiment):
             self._log('Found errors.')
 
             p.two_by_n_plotter(
-                real_space_data, self.filename, self.prms, savepath=self.plotpath,
-                show=True, x_axes_labels=['t/s', 't/s'], tag='NR-no-noise',
+                real_space_data, self.filename, self.prms, savepath=
+                self.plotpath, show=True, x_axes_labels=['t/s', 't/s'],
+                tag='NR-no-noise',
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
@@ -748,10 +762,23 @@ class NRRegimesPython(Experiment):
 #    for w_d in np.arange(120, 150, 5):
 #        configs['max_step_divider'] = np.array([divider])
 #        configs['w_d'] = np.array([w_d])
-real_space = NRRegimesPython()
-real_space.run(plot=True)
+#real_space = NRRegimesPython()
+#real_space.run(plot=True)
 #fft_nr = FFTwNR()
 #fft_nr.run()
+
+#if __name__ == '__main__':
+#    configs = h.yaml_read('../configs/MeasuringAccuracy.yaml')
+#    for sqrt_ks in np.arange(5, 46, 5) * 10**(-3):
+#        for bs in np.array([1, 5]) * 10**(-7):
+#            configs['k_s'] = np.array([sqrt_ks**2])
+#            configs['b_s'] = np.array([bs])
+#            measuring_accuracy = MeasuringAccuracy(config=configs)
+#            measuring_accuracy.run()
+
+if __name__ == '__main__':
+    dt_varying = NRRegimesPython()
+    dt_varying.run()
 
 #if __name__ == '__main__':
 #    configs = h.yaml_read('../configs/NRRegimesPython.yaml')

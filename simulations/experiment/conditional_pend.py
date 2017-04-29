@@ -32,11 +32,10 @@ def jac(t, y, i, b, k):
 
 def ode_integrator(y0, t0, i, b_prime, k_prime, b, k, g_0_mags, w_ds, phases,
                    t_fin, dt, torque_func):
-    r = ode(f_analytic).set_integrator('dop853')
+    r = ode(f_analytic).set_integrator('vode')
     baked_g_0 = h.baker(torque_func, args=['', w_ds, g_0_mags, phases])
     r.set_initial_value(y0, t0).set_f_params(i, baked_g_0, b, b_prime, k,
                                              k_prime)
-
     results = [[t0, *y0]]
     while r.successful() and r.t < t_fin:
         data_point = [r.t + dt, *np.real(r.integrate(r.t + dt))]
@@ -52,13 +51,13 @@ def analytic_torque(t, omega_ds, amplitudes, phases):
     :param amplitudes: Amplitude of sinusoid.
     :param phases: Phase of sinusoid in radians."""
 
-    # TODO Add noise.
     amplitudes, omega_ds, phases = h.check_types_lengths(amplitudes, omega_ds,
                                                          phases)
     torque = 0
     for i in range(len(amplitudes)):
         torque += amplitudes[i] * np.sin(omega_ds[i] * t + phases[i])
-    return torque
+    # ran = np.random.uniform() * amplitudes[0] * 0.1
+    return torque #+ ran
 
 
 def main():

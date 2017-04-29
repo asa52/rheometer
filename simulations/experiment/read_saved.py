@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 
 import helpers as h
-import measurement as m
 import plotter as p
 
 
@@ -124,6 +123,7 @@ def match_torques(grouped_sets, plot_real=False):
         phi = group[0]['phi']
         t0 = group[0]['t0'].squeeze()
         tfin = group[0]['tfin']
+        w_d = group[0]['w_d']
         theta_0 = group[0]['theta_0']
         omega_0 = group[0]['omega_0']
         one_group = [b, b_prime, k, k_prime, i, g_0_mag, phi, t0, tfin, theta_0,
@@ -147,31 +147,40 @@ def match_torques(grouped_sets, plot_real=False):
                                 omega_sim)).T
 
             if plot_real:
-                real_space = [[[[output[:, 0], output[:, 1]],
-                                [output[:, 0], output[:, 4]]],
-                               [[output[:, 0], output[:, 3]]]]]
+                expected_torque = g_0_mag * np.sin(w_d * torques['t'] + phi)
+
+                # Get the number of segments to use per correlation
+                # calculation - equal to one period of the expected torque.
+                period = 2 * np.pi / w_d
+                match_one_period = np.abs(torques['t'] - period)
+                index_of_period = match_one_period.argmin()
+                if match_one_period[index_of_period] < 0:
+                    index_of_period += 1
+
+                real_space = [[[[torques['t'], expected_torque],
+                                [torques['t'], analytic_torque]]]]
                 p.two_by_n_plotter(
-                    real_space, 't-theta-torque',
+                    real_space, 't-torque',
                     {'b': b, 'b\'': b_prime, 'k': k, 'k\'': k_prime, 'i': i,
                      'g_0_mag': g_0_mag, 'phi': phi, 't0': t0, 'tfin': tfin,
                      'theta_0': theta_0, 'omega_0': omega_0}, show=True,
                     x_axes_labels=['t/s'], y_top_labels=[r'$\theta$/rad'],
-                    y_bottom_labels=[r'$G_{0}\sin{(\omegat+\phi)}$/Nm'])
+                    y_bottom_labels=[r'$G_{0}\sin{(\omega t+\phi)}$/Nm'])
 
             # Times have now been matched and we are ready to obtain frequency,
             # amplitude and phase values from the output data.
             # Do once for simulated values and compare to measured values.
-            measure_for = [[output[:, 1], output[:, 2]],
-                           [output[:, 4], output[:, 5]]]
-            mmts = []
-            for measure in measure_for:
-                mmts.append(m.one_mmt_set(
-                    output[:, 0], measure[0], measure[1], output[:, 3], b,
-                    b_prime, k, k_prime, i))
-            one_dataset.append(mmts)
-            one_group.append(one_dataset)
-        fft_mmts.append(one_group)
-    return fft_mmts
+    #        measure_for = [[output[:, 1], output[:, 2]],
+    #                       [output[:, 4], output[:, 5]]]
+    #        mmts = []
+    #        for measure in measure_for:
+    #            mmts.append(m.one_mmt_set(
+    #                output[:, 0], measure[0], measure[1], output[:, 3], b,
+    #                b_prime, k, k_prime, i))
+    #        one_dataset.append(mmts)
+    #        one_group.append(one_dataset)
+    #    fft_mmts.append(one_group)
+    #return fft_mmts
 
 
 def _get_config(path, filename_root):
@@ -199,10 +208,11 @@ def _get_config(path, filename_root):
 
 
 if __name__ == '__main__':
-    directory = '../../../Tests/ExperimentClasses/NRRegimesPython/'
+    directory = '../../../Tests/ExperimentClasses/NRRegimesPython/Varying_dt_' \
+                'max_internal/'
     file_list = h.find_files(directory)
     filename_roots = check_matches(file_list)
     all_data = read_all_data(directory, filename_roots)
     sorted_by_params = sort_data(all_data)
-    fft_data = match_torques(sorted_by_params)
-    prepare_to_plot(fft_data)
+    fft_data = match_torques(sorted_by_params, plot_real=True)
+    #prepare_to_plot(fft_data)
