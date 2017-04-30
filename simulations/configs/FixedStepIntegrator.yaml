@@ -1,0 +1,54 @@
+# Initial conditions
+t0:      0.
+theta_0: 0.
+omega_0: 0.
+
+# Time interval
+tfin:    5.
+
+# Constant parameters at a time.
+i:  5.5e-7   #, .0000001, .000001]
+b:  5.e-7    #, .000000005, .00000001, .00000005, .0000001]
+k:  1.e-3    #, .000001, .000005]
+b': 0.       #1.e-9   #, .000000005, .00000001, .00000005, .0000001]
+k': 0.       #, .000001, .000005]
+
+# torque parameters - one at a time.
+g_0_mag: 1.e-7  #1.e-7  #, .0000005, .000001]
+w_d:     41.    # driving frequency  # todo these parameters need to be run
+phi:     0.
+max_step_divider: 10
+
+# Conversion parameters, from Andreas' Long vac project.
+torque_to_current:      5.5e-9  # Nm per MICRO amp
+torque_to_current_err:  0.9e-9  #Nm per micro amp
+
+rad_to_current:         0.0025  # rad per micro amp
+rad_to_current_err:     0.0001  # rad per micro_amp
+
+k_for_system:           2.2e-6  # Nm per rad
+k_for_system_err:       0.4e-6
+
+i_for_system:           5.5e-7  # kg m^2
+i_for_system_err:       1.1e-7
+
+
+# Test how noise level and frequency affects the measuring functions'
+# accuracy and error. Perhaps modifying these apparatus by adding filtering.
+# Used The Art of Electronics to test against different types of noise. We
+# are testing here that the introduction of noise to a perfect signal does
+# not significantly shift the measured functions' output - it should increase
+# their error, but nothing more. Any systematic shifts in the amplitude,
+# phase, and frequency measurements suggest that it is the measurement of the
+# signal, rather than the signal (eventually from the ODE integrator) itself
+# that is being affected. So for example, for 50Hz noise, for the amplitude
+# measurement we may get 4 peaks - 2 due to the main signals, which are split
+# into two more due to an overlap 50Hz sine. The true amplitude is in this
+# case the midpoint of the 50Hz signal, so filtering this out would improve
+# the accuracy of that measurement. Filtering is NOT applied to signals being
+# fed back into the ODE integrator (it does not make sense to FFT some very
+# noise signals).
+noise_type: 'rand_uniform'  # Valid types: rand_uniform, rand_gaussian, 1/f,
+                            # burst, band-limited, single-freq.
+noise_param_1: 0.
+noise_param_2: 0.

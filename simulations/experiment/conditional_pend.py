@@ -63,3 +63,16 @@ def analytic_torque(t, omega_ds, amplitudes, phases):
 def main():
     ode_integrator([0.1, 0], 0, 1e-7, 0, 0, 1e-6, 1e-6, 1e-7, 137, 0, 5, 3.8e-4,
                    analytic_torque)
+
+
+def rk4(f):
+    """Source: https://rosettacode.org/wiki/Runge-Kutta_method#Python"""
+    return lambda t, y, dt: (
+        lambda dy1: (
+            lambda dy2: (
+                lambda dy3: (
+                    lambda dy4: (dy1 + 2 * dy2 + 2 * dy3 + dy4) / 6
+                )(dt * f(t + dt, y + dy3))
+            )(dt * f(t + dt / 2, y + dy2 / 2))
+        )(dt * f(t + dt / 2, y + dy1 / 2))
+    )(dt * f(t, y))

@@ -92,7 +92,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                     legend_params = kwargs['legend']
                     axis.legend(**legend_params)
 
-    plot_name, descrip_name = _create_names(start, tag)
+    plot_name, descrip_name = _create_names(start, tag, filetype='png')
     if savepath is not None:
         # Save only if save path is not none.
         fig.savefig(savepath + plot_name, dpi=300)
