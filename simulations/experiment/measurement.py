@@ -12,9 +12,13 @@ import helpers as h
 
 def calc_fft(x_axis, y_axis):
     """Calculate the FFT of y over domain x."""
+    print(y_axis)
     n = y_axis.shape[-1]  # length of the signal
     # Get frequencies, normalise by sampling rate and shift to be centred at 0.
-    freqs = np.fft.fftshift(np.fft.fftfreq(n)) / (x_axis[1] - x_axis[0])
+    try:
+        freqs = np.fft.fftshift(np.fft.fftfreq(n)) / (x_axis[1] - x_axis[0])
+    except ZeroDivisionError:
+        print(x_axis[1] - x_axis[0])
     # calculate FFT using FFTW module. Then, shift and normalise.
     fft = pyfftw.builders.fft(y_axis, overwrite_input=False,
                               planner_effort='FFTW_ESTIMATE',

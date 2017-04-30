@@ -1,4 +1,4 @@
-"""Alternative theory_calc scripts for a single sinusoidal torque."""
+"""Theory scripts for a sinusoidal torque."""
 
 import numpy as np
 
@@ -53,15 +53,22 @@ def calculate_sine_pi(t, b, k, i, g_0_mag, w_d, phi):
     part."""
     # Check all parameters are of correct format.
     g_0_mag, w_d, phi = h.check_types_lengths(g_0_mag, w_d, phi)
+    num_times = t.size
 
     # Calculate the forcing torque's amplitude.
     a_0 = g_0_mag * (k - i * w_d ** 2) / (
         b ** 2 * w_d ** 2 + (k - i * w_d ** 2) ** 2)
     b_0 = -g_0_mag * b * w_d / (b ** 2 * w_d ** 2 + (k - i * w_d ** 2) ** 2)
+    a_0, b_0, w_d = np.array([a_0]).T, np.array([b_0]).T, np.array([w_d]).T
 
-    theta_pi = a_0 * np.sin(w_d * t + phi) + b_0 * np.cos(w_d * t + phi)
-    omega_pi = a_0 * w_d * np.cos(w_d * t + phi) - b_0 * w_d * np.sin(
-        w_d * t + phi)
+    theta_pi = a_0 * np.sin(np.outer(w_d, t) + np.outer(phi, np.ones(
+        num_times))) + b_0 * np.cos(np.outer(w_d, t) + np.outer(phi, np.ones(
+        num_times)))
+    theta_pi = np.sum(theta_pi, axis=0)
+    omega_pi = a_0 * w_d * np.cos(np.outer(w_d, t) + np.outer(phi, np.ones(
+        num_times))) - b_0 * w_d * np.sin(np.outer(w_d, t) + np.outer(
+        phi, np.ones(num_times)))
+    omega_pi = np.sum(omega_pi, axis=0)
     return np.array([theta_pi, omega_pi])
 
 
