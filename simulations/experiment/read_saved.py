@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 import helpers as h
+import measurement as m
 import plotter as p
 
 
@@ -40,9 +41,9 @@ def prepare_to_plot(grouped_mmts, savepath=None, show=True):
         simulated_freqs = to_plot[:, 0, 0, :]
         simulated_amps = to_plot[:, 0, 1, :]
         simulated_phase = to_plot[:, 0, 2, :]
-        measured_freqs = to_plot[:, 1, 0, :]
-        measured_amps = to_plot[:, 1, 1, :]
-        measured_phase = to_plot[:, 1, 2, :]
+        #measured_freqs = to_plot[:, 1, 0, :]
+        #measured_amps = to_plot[:, 1, 1, :]
+        #measured_phase = to_plot[:, 1, 2, :]
 
     ## For a single set of data, get the transfer function once only. This
     ## allows error to be calculated as specifically the experimental
@@ -54,10 +55,10 @@ def prepare_to_plot(grouped_mmts, savepath=None, show=True):
 
         mmts = \
             [[
-                [[simulated_freqs, simulated_amps],
-                 [measured_freqs, measured_amps]],
-                [[simulated_freqs, simulated_phase],
-                 [measured_freqs, measured_phase]]
+                [[simulated_freqs, simulated_amps]],#,
+                 #[measured_freqs, measured_amps]],
+                [[simulated_freqs, simulated_phase]]#,
+                 #[measured_freqs, measured_phase]]
             ]]
         p.two_by_n_plotter(
             mmts, '', {'b': parameter_set[0], 'b\'': parameter_set[1],
@@ -157,8 +158,20 @@ def match_torques(grouped_sets, plot_real=False):
                 if match_one_period[index_of_period] < 0:
                     index_of_period += 1
 
-                real_space = [[[[torques['t'], expected_torque],
-                                [torques['t'], analytic_torque]]]]
+                real_space = \
+                    [
+                        [
+                            [
+                                [output[:, 0], output[:, 1]],
+                                [output[:, 0], output[:, 2]]
+                            ],
+                            [
+                                [torques['t'], expected_torque],
+                                [torques['t'], analytic_torque]
+                            ]
+                        ]
+                    ]
+
                 p.two_by_n_plotter(
                     real_space, 't-torque',
                     {'b': b, 'b\'': b_prime, 'k': k, 'k\'': k_prime, 'i': i,
@@ -170,17 +183,17 @@ def match_torques(grouped_sets, plot_real=False):
             # Times have now been matched and we are ready to obtain frequency,
             # amplitude and phase values from the output data.
             # Do once for simulated values and compare to measured values.
-    #        measure_for = [[output[:, 1], output[:, 2]],
-    #                       [output[:, 4], output[:, 5]]]
-    #        mmts = []
-    #        for measure in measure_for:
-    #            mmts.append(m.one_mmt_set(
-    #                output[:, 0], measure[0], measure[1], output[:, 3], b,
-    #                b_prime, k, k_prime, i))
-    #        one_dataset.append(mmts)
-    #        one_group.append(one_dataset)
-    #    fft_mmts.append(one_group)
-    #return fft_mmts
+            measure_for = [[output[:, 1], output[:, 2]]]#, only plot actual ones
+                           #[output[:, 4], output[:, 5]]]
+            mmts = []
+            for measure in measure_for:
+                mmts.append(m.one_mmt_set(
+                    output[:, 0], measure[0], measure[1], output[:, 3], b,
+                    b_prime, k, k_prime, i))
+            one_dataset.append(mmts)
+            one_group.append(one_dataset)
+        fft_mmts.append(one_group)
+    return fft_mmts
 
 
 def _get_config(path, filename_root):
@@ -198,21 +211,25 @@ def _get_config(path, filename_root):
         config_string = config_string[0].replace('array', 'np.array')
         configs = config_string.split(',')
         config_dict = {}
+        print(configs)
         for key_string in configs:
-            key = eval(key_string.split(':')[0])
-            value = eval(key_string.split(':')[1])
-            config_dict[key] = value
+            if 'dtype' not in key_string and 'noise_type' not in key_string:
+                key = eval(key_string.split(':')[0])
+                value = eval(key_string.split(':')[1])
+                config_dict[key] = value
+            else:
+                pass
         # NOTE this will split the string into individual keys as long as the
         # numpy arrays only have 1 element each!
     return config_dict
 
 
 if __name__ == '__main__':
-    directory = '../../../Tests/ExperimentClasses/NRRegimesPython/Varying_dt_' \
-                'max_internal/'
+    directory = 'Z:/PartIIIProj/real-space-nr/Tests/ExperimentClasses' \
+                '/NRRegimesPython/'
     file_list = h.find_files(directory)
     filename_roots = check_matches(file_list)
     all_data = read_all_data(directory, filename_roots)
     sorted_by_params = sort_data(all_data)
-    fft_data = match_torques(sorted_by_params, plot_real=True)
-    #prepare_to_plot(fft_data)
+    fft_data = match_torques(sorted_by_params, plot_real=False)
+    prepare_to_plot(fft_data, savepath=directory + 'plots/')

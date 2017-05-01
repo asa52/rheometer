@@ -773,8 +773,7 @@ class FixedStepIntegrator(Experiment):
         self.t_fin = self.prms['tfin']
         self.g_0 = self.prms['g_0_mag']
         self.divider = self.prms['max_step_divider']
-        self.period_divider = 120.
-        assert self.divider.dtype == np.int32
+        self.period_divider = 120.#500.
 
         # Get the driving frequency and hence the sampling rate. This can be
         # an array, which will be tested one at a time. TODO convert to array.
@@ -791,9 +790,8 @@ class FixedStepIntegrator(Experiment):
         self.total_torque = self.torque_sine[0]  # Only analytic torque here.
         self.theta_sim = self.y0[0]
         self.omega_sim = self.y0[1]
-        self.torques = np.array(
-            [[*self.t0, self.total_torque, self.theta_sim,
-              self.omega_sim]])
+        self.torques = np.array([[*self.t0, self.total_torque, self.theta_sim,
+                                  self.omega_sim]])
 
     def _update_torque(self, input_theta, i):
         """Get the updated torque given the angular displacement in radians."""
@@ -897,24 +895,30 @@ class FixedStepIntegrator(Experiment):
                     self._log('before mmts')
                     # Half-amplitude of peak used to calculate bandwidth.
                     freq = m.calc_freqs(np.absolute(fft_theta), frq,
-                                        n_peaks=1)[0]
+                                        n_peaks=1)
                 else:
                     raise Exception('Panic 2.')
 
             # Calculate fourier series first 1000 terms.
             ind = np.arange(1, 1000, 1, dtype=np.int32)
-            ind_a_b = fourier.calc_fourier_coeffs(
-                ind, freq * 2 * np.pi, self.dt, self.g_0)
+            ind_a_b = fourier.calc_fourier_coeffs(ind, self.w_d, self.dt,
+                                                  self.g_0)
+            #freq * 2 * np.pi, self.dt, self.g_0)
             ind_mag_phi = fourier.convert_to_mag_phis(
                 ind_a_b[:, 0], ind_a_b[:, 1], ind_a_b[:, 2])
-            print(ind_mag_phi)
+            f_torque = fourier.get_torque(self.torques[:, 0], ind_mag_phi[:, 0],
+                                          ind_mag_phi[:, 1], ind_mag_phi[:, 2],
+                                          self.w_d)
 
             # Calculate theoretical vs actual torque and plot.
-            #plt.plot(self.torques[:, 0], fourier.get_torque(
-            #    self.torques[:, 0], ind_mag_phi[:, 0], ind_mag_phi[:, 1],
-            #    ind_mag_phi[:, 2], self.w_d))
-            #plt.plot(self.torques[:, 0], self.torques[:, 1])
-            #plt.show()
+            #plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
+            #plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
+            #plt.tick_params(direction='out')
+            #plt.grid(True)
+            #plt.xlabel('t/s', fontweight='bold', fontsize=13)
+            #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
+            #plt.savefig('torques.png')
+            #plt.close()
 
             # Calculate theoretical results.
             torque_sine = h.baker(t.calculate_sine_pi,
