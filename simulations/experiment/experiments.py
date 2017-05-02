@@ -252,21 +252,9 @@ class MeasuringAccuracy(Experiment):
                     fft_data.append(all_times[i][-1][-1])
             if j == 0:
                 fft_mmts = np.array(fft_data)
-
-                # Get the theoretical response curves. Note that w is the only
-                # array.
-                #fft_theory = np.array(h.all_combs(t.theory_response, b_s, k_s,
-                #                                  i_s, b_primes, k_primes,
-                #                                  ws[j]))
-
             else:
                 fft_mmts = np.append(fft_mmts, np.array(fft_data), axis=0)
                 fft_mmts = fft_mmts[fft_mmts[:, 0, 0].argsort()]
-
-                #fft_theory = np.append(fft_theory, np.array(h.all_combs(
-                #    t.theory_response, b_s, k_s, i_s, b_primes, k_primes,
-                #    ws[j])), axis=0)
-                #fft_theory = fft_theory[fft_theory[:, -2].argsort()]
 
             self._log('after fft setup')
         ang_freqs = np.array([fft_mmts[:, 0, 0],
@@ -773,7 +761,7 @@ class FixedStepIntegrator(Experiment):
         self.t_fin = self.prms['tfin']
         self.g_0 = self.prms['g_0_mag']
         self.divider = self.prms['max_step_divider']
-        self.period_divider = 120.#500.
+        self.period_divider = self.prms['sampling_divider']
 
         # Get the driving frequency and hence the sampling rate. This can be
         # an array, which will be tested one at a time. TODO convert to array.
@@ -783,7 +771,7 @@ class FixedStepIntegrator(Experiment):
 
         # Create an array of the sine values for the analytic torque.
         self.torque_sine = self.g_0 * np.sin(self.w_d * np.arange(
-            self.t0, 2 * np.pi / self.w_d, self.dt) + self.phi)
+            self.t0, 2*np.pi / self.w_d + self.t0, self.dt) + self.phi)
 
         # set initial parameters. For 1st run, set them equal to the actual
         # initial conditions to avoid later errors in calculation.
@@ -800,7 +788,7 @@ class FixedStepIntegrator(Experiment):
         # theta_sim value in torques array
         self.theta_sim = input_theta  # todo add noise and delays here
         self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
-        self.total_torque = self.torque_sine[i % len(self.torque_sine)] + \
+        self.total_torque = self.torque_sine[i] + \
             self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
         self._log('Torque updated.')
 
@@ -846,15 +834,15 @@ class FixedStepIntegrator(Experiment):
                             self.omega_sim])
             times, y = times + stepsize, y + dy(times, y, stepsize)
             update_counter += 1
-            self._log('Time step incremented.')
             # For a fixed step size, we can just repeat the torque
             # recalculation every self.divider steps, so there is no
             # overshooting.
             if update_counter == self.divider:
                 update_counter = 0
                 torque_index += 1
+                if torque_index == self.period_divider:
+                    torque_index = 0
                 self._update_torque(y[0], torque_index)
-                self._log('Torque re-calculated.')
 
         results = np.array(results).squeeze()
         self._log('Calculation complete.', printit=True)
@@ -875,8 +863,6 @@ class FixedStepIntegrator(Experiment):
                 # Will only reach steady state if this is the case, otherwise no
                 # point making a response curve. Measure one point. b - b' = 0
                 # has two steady state frequencies, the transient and PI.
-                #ss_times = m.identify_ss(results[:, 0], results[:, 1],
-                #                         n_per_segment=time_index)
                 ss_times = m.enter_ss_times(results[:, 0], results[:, 1])
                 # TODO change the tolerance. Also note that when the window is
                 # comparable to the period, the correlation changes
@@ -917,8 +903,7 @@ class FixedStepIntegrator(Experiment):
             #plt.grid(True)
             #plt.xlabel('t/s', fontweight='bold', fontsize=13)
             #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
-            #plt.savefig('torques.png')
-            #plt.close()
+            #plt.show()
 
             # Calculate theoretical results.
             torque_sine = h.baker(t.calculate_sine_pi,
@@ -950,7 +935,6 @@ class FixedStepIntegrator(Experiment):
                 [results[:, 1], theory[:, 1]], [results[:, 2], theory[:, 2]])[1]
             simu_diffs = m.calc_norm_errs([results[:, 4], results[:, 1]],
                                           [results[:, 5], results[:, 2]])[1]
-
             real_space_data = \
                 [[[[theory[:, 0], theory[:, 1]],
                    [theory_fourier[:, 0], theory_fourier[:, 1]],
@@ -967,16 +951,14 @@ class FixedStepIntegrator(Experiment):
 
             p.two_by_n_plotter(
                 real_space_data, self.filename, self.prms, tag='fourier-added',
-                savepath=self.plotpath, show=True, x_axes_labels=['t/s', 't/s'],
+                savepath=self.plotpath, show=False, x_axes_labels=['t/s', 't/s'],
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
-            self._log('Plotted and saved.', printit=True)
 
         exp_results = pd.DataFrame(
             results, columns=['t', 'theta', 'omega', 'total-torque',
                               'theta-sim', 'omega-sim'])
-        self._log('Created data frames.', printit=True)
         return {'all-mmts': exp_results}
 
 
@@ -1010,9 +992,19 @@ class FixedStepIntegrator(Experiment):
 #        nrregimespython = NRRegimesPython(config=configs)
 #        nrregimespython.run()
 
-print('RK4 test for self.dt = T/120')
-rk_test = FixedStepIntegrator()
-rk_test.run()
+configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
+k_eff = 1.e-3
+b_eff = 5.e-7
+for k in np.arange(1.e-4, 1.9 * k_eff, 1.e-4):
+    configs['k'] = np.array([k])
+    configs['k\''] = np.array([k - k_eff])
+    for b in np.arange(5.e-8, 1.9 * b_eff, 5.e-8):
+        configs['b'] = np.array([b])
+        configs['b\''] = np.array([b - b_eff])
+        print('k={}'.format(k), 'b={}'.format(b), 'k\'={}'.format(k - k_eff),
+              'b\'={}'.format(b - b_eff))
+        rk_test = FixedStepIntegrator()
+        rk_test.run(plot=False)
 
 # TODO note down the config for the Python experiment, including the type of
 # TODO integrator used and the behaviour of speed for high frequencies - the

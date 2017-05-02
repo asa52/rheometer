@@ -86,7 +86,8 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                         if y_bottom_labels[k] is not None:
                             axis.set_ylabel(y_bottom_labels[k],
                                             fontweight='bold', fontsize=13)
-                axis.ticklabel_format(useOffset=False)
+                axis.ticklabel_format(axis='both', useOffset=False)
+                axis.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
                 if 'legend' in kwargs and label is not None:
                     legend_params = kwargs['legend']

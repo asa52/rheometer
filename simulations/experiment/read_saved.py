@@ -5,6 +5,7 @@ done, calculate the response curve for each set."""
 import re
 from itertools import groupby
 from operator import itemgetter
+from time import time
 
 import numpy as np
 import pandas as pd
@@ -21,10 +22,13 @@ def check_matches(files_list, num_one=r'displacements',
     num_two exist in the list. Returns the list of the filename roots (the 
     start of the file name) where this condition is met."""
     fname_roots = []
+    len_num_one = len(num_one) + 4  # add 4 for csv extension
     for each_file in files_list:
         if re.search(re.compile(num_one), each_file):
-            if each_file[:-17] + num_two in files_list:
-                fname_roots.append(each_file[:-17])
+            if num_two is None:
+                fname_roots.append(each_file[:-len_num_one])
+            elif each_file[:-len_num_one] + num_two in files_list:
+                fname_roots.append(each_file[:-len_num_one])
     return fname_roots
 
 
@@ -66,28 +70,40 @@ def prepare_to_plot(grouped_mmts, savepath=None, show=True):
                        'i': parameter_set[4], 'g_0_mag': parameter_set[5],
                        'phi': parameter_set[6], 't0': parameter_set[7],
                        'tfin': parameter_set[8], 'theta_0': parameter_set[9],
-                       'omega_0': parameter_set[10]}, savepath=savepath,
-            show=show, x_axes_labels=['$\omega$/rad/s'],
+                       'omega_0': parameter_set[10]},
+            savepath=savepath, show=show, x_axes_labels=['$\omega$/rad/s'],
+            tag='{}'.format(time()),
             y_top_labels=[r'$\left|\frac{\theta(\omega)}{G(\omega)}\right|$/'
                           r'rad/(Nm)'],
             y_bottom_labels=[r'$\phi(\frac{\theta(\omega)}{G(\omega)})$/rad'])
 
 
-def read_all_data(path, fname_roots):
+def read_all_data(path, fname_roots, disps_ext=r'displacements',
+                  torque_ext=r'measured-vals'):
     """Read all data for a list of filename roots, as well as the parameters 
     used for them. Return a list of dictionaries containing the parameters, 
     as well as the time-theta data under the 'disps' key, and the torque data 
     in the 'torques' key.
     :param path: String for the directory to look in.
-    :param fname_roots: A list of filename roots."""
+    :param fname_roots: A list of filename roots.
+    :param disps_ext: Displacements file extension.
+    :param torque_ext: Torques file extension. Set to same as above if 
+    reading from the same file."""
 
     outputs = []
     for root in fname_roots:
         param_dict = _get_config(path, root)
-        param_dict['disps'] = pd.read_csv('{}{}displacements.csv'.format(
-            path, root), index_col=0)
-        param_dict['torques'] = pd.read_csv('{}{}measured-vals.csv'.format(
-            path, root), index_col=0)
+        if disps_ext == torque_ext:
+            df = pd.read_csv('{}{}{}.csv'.format(path, root, disps_ext),
+                             index_col=0)
+            param_dict['disps'] = df[['t', 'theta', 'omega']]
+            param_dict['torques'] = df[['t', 'total-torque', 'theta-sim',
+                                        'omega-sim']]
+        else:
+            param_dict['disps'] = pd.read_csv('{}{}{}.csv'.format(
+                path, root, disps_ext), index_col=0)
+            param_dict['torques'] = pd.read_csv('{}{}{}.csv'.format(
+                path, root, torque_ext), index_col=0)
         outputs.append(param_dict)
     return outputs
 
@@ -106,7 +122,7 @@ def sort_data(all_datasets, sort_by=('b', 'phi', "b'", 't0', 'k', 'omega_0',
     return sets
 
 
-def match_torques(grouped_sets, plot_real=False):
+def match_torques(grouped_sets, plot_real=False, savepath=None):
     """Match the times to the torques and displacements and return an array 
     of those values for each of the parameter combinations.
     :param grouped_sets: All grouped data.
@@ -134,16 +150,16 @@ def match_torques(grouped_sets, plot_real=False):
             # one dictionary with real space data and torque values.
             disps = dataset['disps']
             torques = dataset['torques']
-            analytic_torque = torques['total torque'] - k_prime * torques[
-                'theta_sim'] - b_prime * torques['omega_sim']
+            analytic_torque = torques['total-torque'] - k_prime * torques[
+                'theta-sim'] - b_prime * torques['omega-sim']
             analytic, theta_sim, omega_sim = [], [], []
 
             for t in disps['t']:
                 # match up the real and torque data times.
                 idx = (np.abs(torques['t'] - t)).argmin()
                 analytic.append(analytic_torque[idx])
-                theta_sim.append(torques['theta_sim'][idx])
-                omega_sim.append(torques['omega_sim'][idx])
+                theta_sim.append(torques['theta-sim'][idx])
+                omega_sim.append(torques['omega-sim'][idx])
             output = np.vstack((disps.as_matrix().T, analytic, theta_sim,
                                 omega_sim)).T
 
@@ -162,8 +178,7 @@ def match_torques(grouped_sets, plot_real=False):
                     [
                         [
                             [
-                                [output[:, 0], output[:, 1]],
-                                [output[:, 0], output[:, 2]]
+                                [output[:, 0], output[:, 1]]
                             ],
                             [
                                 [torques['t'], expected_torque],
@@ -177,7 +192,9 @@ def match_torques(grouped_sets, plot_real=False):
                     {'b': b, 'b\'': b_prime, 'k': k, 'k\'': k_prime, 'i': i,
                      'g_0_mag': g_0_mag, 'phi': phi, 't0': t0, 'tfin': tfin,
                      'theta_0': theta_0, 'omega_0': omega_0}, show=True,
-                    x_axes_labels=['t/s'], y_top_labels=[r'$\theta$/rad'],
+                    savepath=savepath, x_axes_labels=['t/s'],
+                    tag='{}'.format(time()),
+                    y_top_labels=[r'$\theta$/rad'],
                     y_bottom_labels=[r'$G_{0}\sin{(\omega t+\phi)}$/Nm'])
 
             # Times have now been matched and we are ready to obtain frequency,
@@ -225,11 +242,14 @@ def _get_config(path, filename_root):
 
 
 if __name__ == '__main__':
-    directory = 'Z:/PartIIIProj/real-space-nr/Tests/ExperimentClasses' \
-                '/NRRegimesPython/'
+    directory = r'C:/Users/Abhishek/OneDrive - University Of ' \
+                r'Cambridge/Project/Tests/ExperimentClasses' \
+                r'/FixedStepIntegrator/Same keff beff comparison NR/'
     file_list = h.find_files(directory)
-    filename_roots = check_matches(file_list)
-    all_data = read_all_data(directory, filename_roots)
+    filename_roots = check_matches(file_list, num_one='all-mmts', num_two=None)
+    all_data = read_all_data(directory, filename_roots, disps_ext='all-mmts',
+                             torque_ext='all-mmts')
     sorted_by_params = sort_data(all_data)
-    fft_data = match_torques(sorted_by_params, plot_real=False)
+    fft_data = match_torques(sorted_by_params, plot_real=True,
+                             savepath=directory + 'plots/')
     prepare_to_plot(fft_data, savepath=directory + 'plots/')
