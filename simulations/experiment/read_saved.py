@@ -57,7 +57,7 @@ def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
 
         # Generate evenly spaced angular frequencies.
         even_spaced_wd = np.linspace(
-            min(simulated_ang_freqs), max(simulated_ang_freqs), 5000)
+            np.min(simulated_ang_freqs), np.max(simulated_ang_freqs), 5000)
 
         mmts = \
             [
@@ -117,18 +117,23 @@ def read_all_data(path, fname_roots, disps_ext=r'displacements',
     return outputs
 
 
-def sort_data(all_datasets, sort_by=('b', 'phi', "b'", 't0', 'k', 'omega_0',
-                                     'tfin', 'i', "k'", 'g_0_mag', 'theta_0')):
+def sort_data(all_datasets, all_same=False,
+              sort_by=('b', 'phi', "b'", 't0', 'k', 'omega_0', 'tfin', 'i',
+                       "k'", 'g_0_mag', 'theta_0')):
     """Sort all data by grouping according to parameter values. Return a list of 
-    lists of dictionaries."""
-    grouper = itemgetter(*sort_by)
-    sets = []
-    for group in groupby(sorted(all_datasets, key=grouper), key=grouper):
-        same_parameters = []
-        for element in group[1]:
-            same_parameters.append(element)
-        sets.append(same_parameters)
-    return sets
+    lists of dictionaries. If all_same is True, just returns the entire 
+    thing as if all parameters belong to one set."""
+    if all_same:
+        return [all_datasets]
+    else:
+        grouper = itemgetter(*sort_by)
+        sets = []
+        for group in groupby(sorted(all_datasets, key=grouper), key=grouper):
+            same_parameters = []
+            for element in group[1]:
+                same_parameters.append(element)
+            sets.append(same_parameters)
+        return sets
 
 
 def match_torques(grouped_sets, plot_real=False, savepath=None):
@@ -160,16 +165,16 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
             # one dictionary with real space data and torque values.
             disps = dataset['disps']
             torques = dataset['torques']
-            analytic_torque = torques['total torque'] - k_prime * torques[
-                'theta_sim'] - b_prime * torques['omega_sim']
+            analytic_torque = torques['total-torque'] - k_prime * torques[
+                'theta-sim'] - b_prime * torques['omega-sim']
             analytic, theta_sim, omega_sim = [], [], []
 
             for t in disps['t']:
                 # match up the real and torque data times.
                 idx = (np.abs(torques['t'] - t)).argmin()
                 analytic.append(analytic_torque[idx])
-                theta_sim.append(torques['theta_sim'][idx])
-                omega_sim.append(torques['omega_sim'][idx])
+                theta_sim.append(torques['theta-sim'][idx])
+                omega_sim.append(torques['omega-sim'][idx])
             output = np.vstack((disps.as_matrix().T, analytic, theta_sim,
                                 omega_sim)).T
 

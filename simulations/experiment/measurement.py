@@ -3,7 +3,7 @@ being processed."""
 
 import matplotlib.pyplot as plt
 import numpy as np
-# import pyfftw
+import pyfftw
 import scipy.fftpack as f
 import scipy.signal as sg
 
@@ -27,41 +27,38 @@ def calc_fft(x_axis, y_axis):
     return freqs, full_fft_y
 
 
-def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.01,
-                max_increase=0.001):
+def identify_ss(x_axis, y_axis, n_per_segment=None, tol=0.03,
+                max_increase=0.01):
     """Calculate the x range over which the FFT of y is in the steady state, 
     which means the normalised correlation between consecutive data segments is 
     greater than min_lim and within tol of the previous. x should be 
     uniformly spaced."""
 
-    # TODO adjust the tolerance as needed.
-    # Also note that when the window is comparable to the period, the
-    # correlation changes significantly as you move across. Consider adjusting
-    # the window size when this occurs.
+    # Note that when the window is comparable to the period, the correlation
+    # changes significantly as you move across. Consider adjusting the window
+    # size when this occurs.
 
     if n_per_segment is None:
-        n_per_segment = int(len(x_axis) / 75)
+        n_per_segment = int(len(x_axis) / 20)
 
     # Get consecutive correlations.
-    xs, correlations = norm_correlations(x_axis, y_axis, n_per_segment)
+    xs, correlations = real_norm_correlations(x_axis, y_axis, n_per_segment)
     # To work out the range of times that correspond to good steady state
-    # values, require that the correlation exceeds 'min_lim' and the gradient
-    # varies by no more than 'tol' either side. Find the range of times where
-    # this is obeyed.
-    exceeds_min = correlations >= min_lim
-
-    # within_tol checks that the differences between consecutive values are
-    # small, but there can still be a small net increase. Need to ensure that
-    # the differences are within some range around 0. 10**(-4) is the default.
+    # values, require that the correlation gradient varies by no more than 'tol'
+    # either side. Find the range of times where this is obeyed. within_tol
+    # checks that the differences between consecutive values are small, but
+    # there can still be a small net increase. Need to ensure that the
+    # differences are within some range around 0.
     diffs = np.ediff1d(correlations)
     within_tol = np.absolute(diffs) <= tol
     within_tol = np.insert(within_tol, 0, [False])
-    valid_corr = correlations[exceeds_min * within_tol]
+    valid_corr = correlations[within_tol]
     assert np.absolute(np.mean(valid_corr - np.mean(valid_corr))) < \
         max_increase, "Steady state not reached - correlations are " \
                       "changing."
-    ss_points = xs[exceeds_min * within_tol]
-    return min(ss_points), max(ss_points)
+    ss_points = xs[within_tol]
+    print(np.min(ss_points), np.max(ss_points))
+    return np.min(ss_points), np.max(ss_points)
 
 
 def enter_ss_times(x_axis, y_axis):
@@ -135,7 +132,7 @@ def get_peak_pos(max_peaks, x_axis, y_axis):
 def calc_one_amplitude(real_disps, bins=None):
     """Calculate the mean amplitude of time-domain signal y."""
     if bins is None:
-        bins = int(len(real_disps) / 10)
+        bins = int(len(real_disps) / 20.)
 
     # Get a histogram of the displacement values and find the peaks here,
     # which should occur at the endpoints for a single frequency. This is
@@ -145,11 +142,13 @@ def calc_one_amplitude(real_disps, bins=None):
     num = results[0]
     displacements = results[1]
     bin_centres = displacements[:-1] + np.ediff1d(displacements)
+    bin_width = bin_centres[1] - bin_centres[0]
     peaks = np.array([bin_centres, num]).T
     highest_peaks = peaks[:, 1].argsort()[-2:]
     peaks = peaks[highest_peaks]
     peaks -= np.mean(displacements)
-    amp = h.combine_quantities(np.absolute(peaks[:, 0]), operation='mean')
+    amp = h.combine_quantities(np.absolute(peaks[:, 0]), errs=np.array([
+        bin_width, bin_width]), operation='mean')
     return amp
 
 
@@ -273,6 +272,104 @@ def calc_norm_errs(*datasets):
     return norm_errs, errs
 
 
+def norm_correlations(x_axis, y_axis, n_per_segment):
+    """Get normalised correlations of consecutive y segments with n_per_segment 
+    points per segment using the windowed fourier transform."""
+    results = _calc_stft(x_axis, y_axis, n_per_segment)
+    freqs = results[0]
+    xs = results[1][1:]
+    amplitudes = results[2]
+
+    # Calculate normalised amplitudes by subtracting mean. Necessary for
+    # normalised correlation calculation.
+    mean_amps = np.mean(amplitudes, axis=0)
+    means = np.outer(np.ones(len(freqs)), mean_amps)
+    norm_amps = amplitudes - means
+
+    prev_col = np.roll(norm_amps, 1, axis=1)
+    norm_by = norm_amps.shape[0] * np.std(norm_amps, ddof=1, axis=0) * \
+        np.std(prev_col, ddof=1, axis=0)
+
+    # Calculate consecutive normalised correlations.
+    correlations = []
+    for i in range(norm_amps.shape[1]):
+        if i != 0:
+            try:
+                correlations.append(np.absolute(sg.correlate(
+                    prev_col[:, i], norm_amps[:, i], mode='valid') /
+                                                norm_by[i]))
+            except RuntimeWarning:
+                # When trying to divide by zero.
+                correlations.append(0)
+    return xs, np.array(correlations).squeeze()
+
+
+def real_norm_correlations(x_axis, y_axis, n_per_segment):
+    """Get normalised correlations of consecutive y segments with n_per_segment 
+    points per segment using REAL SPACE measurements."""
+    x_axis, y_axis = h.check_types_lengths(x_axis.squeeze(), y_axis.squeeze())
+    len_y = y_axis.size  # x and y must be 1D and of the same length.
+
+    split_into = int(np.round(len_y / n_per_segment))
+    if len_y % split_into != 0:
+        go_up_to = n_per_segment * split_into
+    else:
+        go_up_to = len(y_axis)
+
+    # Calculate correlations of y values and corresponding midpoint of x window.
+    combined = np.array([x_axis, y_axis]).T
+    splitted = np.array(np.split(combined[:go_up_to, :], split_into, axis=0))
+
+    x_split = splitted[:, :, 0]
+    y_split = splitted[:, :, 1]
+    x_means = np.mean(x_split, axis=1)
+    y_split = np.array(y_split) - np.mean(y_axis)    # subtract mean.
+    y_roll = np.roll(y_split, 1, axis=0)
+    corr = real_corr(y_split, y_roll)
+    norm_corr = corr / np.sqrt(real_corr(y_split, y_split) * real_corr(
+        y_roll, y_roll))
+    return x_means, norm_corr
+
+
+def real_corr(a, b):
+    """Calculate the correlation between the real signals a and b in the 
+    region where they both overlap, assuming both are of same length."""
+    return np.sum(np.absolute(a * b), axis=-1)
+
+
+def one_mmt_set(times, theta, torque, b, b_prime, k, k_prime, i):
+    """Measure one set of frequency, amplitude and phase values, given the 
+    values of the relevant parameters."""
+    w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (
+        2 * i ** 2) + 0j)
+
+    if b - b_prime >= 0:
+        if b - b_prime == 0 and np.isreal(w_res):
+            # filter out the transient frequency if it will never
+            # decay on its own.
+            theta = remove_one_frequency(times, theta, w_res)
+
+        # Will only reach steady state if b - b' >=0, otherwise no
+        # point making a response curve. b - b' = 0 has two steady state
+        # frequencies, the transient and PI. Eliminate the transient first.
+        ss_times = identify_ss(times, theta)
+
+        if ss_times is not False:
+            frq, fft_theta = calc_fft(
+                times[(times >= ss_times[0]) * (times <= ss_times[1])],
+                theta[(times >= ss_times[0]) * (times <= ss_times[1])])
+            # for low frequencies, the length of time of the signal
+            # must also be sufficiently wrong for the peak position
+            # to be measured properly.
+
+            # Half-amplitude of peak used to calculate bandwidth.
+            freq = calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
+            amp = calc_one_amplitude(
+                theta[(times >= ss_times[0]) * (times <= ss_times[1])])
+            phase = calc_phase(theta, torque)
+            return np.array([freq, amp, phase])
+
+
 def _peak_detect(y_values, n_maxima):
     """Find the indices of the peaks in y-values and their heights, and return 
     the sharpest n_maxima peaks. Does a calculation based on the np.gradient 
@@ -311,69 +408,3 @@ def _calc_stft(x_axis, y_axis, n_per_segment):
     x_axis, y_axis = h.check_types_lengths(x_axis, y_axis)
     fs = 1 / (x_axis[1] - x_axis[0])
     return sg.stft(y_axis, fs, window='boxcar', nperseg=n_per_segment)
-
-
-def norm_correlations(x_axis, y_axis, n_per_segment):
-    """Get normalised correlations of consecutive y segments with n_per_segment 
-    points per segment."""
-    results = _calc_stft(x_axis, y_axis, n_per_segment)
-    freqs = results[0]
-    xs = results[1][1:]
-    amplitudes = results[2]
-
-    # Calculate normalised amplitudes by subtracting mean. Necessary for
-    # normalised correlation calculation.
-    mean_amps = np.mean(amplitudes, axis=0)
-    means = np.outer(np.ones(len(freqs)), mean_amps)
-    norm_amps = amplitudes - means
-
-    prev_col = np.roll(norm_amps, 1, axis=1)
-    norm_by = norm_amps.shape[0] * np.std(norm_amps, ddof=1, axis=0) * \
-        np.std(prev_col, ddof=1, axis=0)
-
-    # Calculate consecutive normalised correlations.
-    correlations = []
-    for i in range(norm_amps.shape[1]):
-        if i != 0:
-            try:
-                correlations.append(np.absolute(sg.correlate(
-                    prev_col[:, i], norm_amps[:, i], mode='valid') /
-                                                norm_by[i]))
-            except RuntimeWarning:
-                # When trying to divide by zero.
-                correlations.append(0)
-    return xs, np.array(correlations).squeeze()
-
-
-def one_mmt_set(times, theta, torque, b, b_prime, k, k_prime, i):
-    """Measure one set of frequency, amplitude and phase values, given the 
-    values of the relevant parameters."""
-    w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (
-        2 * i ** 2) + 0j)
-
-    if b - b_prime >= 0:
-        if b - b_prime == 0 and np.isreal(w_res):
-            # filter out the transient frequency if it will never
-            # decay on its own.
-            theta = remove_one_frequency(times, theta, w_res)
-
-        # Will only reach steady state if b - b' >=0, otherwise no
-        # point making a response curve. b - b' = 0 has two steady state
-        # frequencies, the transient and PI. Eliminate the transient first.
-        ss_times = enter_ss_times(times, theta)
-        # m.identify_ss(times, exp[:, 1])
-
-        if ss_times is not False:
-            frq, fft_theta = calc_fft(
-                times[(times >= ss_times[0]) * (times <= ss_times[1])],
-                theta[(times >= ss_times[0]) * (times <= ss_times[1])])
-            # for low frequencies, the length of time of the signal
-            # must also be sufficiently wrong for the peak position
-            # to be measured properly.
-
-            # Half-amplitude of peak used to calculate bandwidth.
-            freq = calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
-            amp = calc_one_amplitude(
-                theta[(times >= ss_times[0]) * (times <= ss_times[1])])
-            phase = calc_phase(theta, torque)
-            return np.array([freq, amp, phase])

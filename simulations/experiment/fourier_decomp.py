@@ -55,7 +55,7 @@ def calc_fourier_coeffs(indices, angular_freq, delta_t, g_0):
     :param g_0: Magnitude of the sine torque function."""
     assert indices.dtype == np.int32
     period = 2*np.pi/angular_freq
-    integration_t_range = np.arange(0, period, delta_t/1000)
+    integration_t_range = np.arange(0, period, delta_t / 1000)
     a_range = a_formula(integration_t_range, angular_freq, delta_t, g_0,
                         indices)
     b_range = b_formula(integration_t_range, angular_freq, delta_t, g_0,
