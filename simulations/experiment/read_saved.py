@@ -32,38 +32,48 @@ def check_matches(files_list, num_one=r'displacements',
     return fname_roots
 
 
-def prepare_to_plot(grouped_mmts, savepath=None, show=True):
+def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
     """For this particular arrangement of measurements, reformat the grouped 
     data to be plotted.
     :param grouped_mmts: The measurements of frequency, amplitude and phase 
     returned by measure_all_groups.
+    :param theory_resp: Theory's response function baked to require just the 
+    driving angular frequency.
     :param savepath: The path to save the graphs to.
     :param show: Whether to show each graph or not."""
 
     for parameter_set in grouped_mmts:
         to_plot = np.array(parameter_set[-1])
-        simulated_freqs = to_plot[:, 0, 0, :]
-        simulated_amps = to_plot[:, 0, 1, :]
-        simulated_phase = to_plot[:, 0, 2, :]
+        # Convert to angular frequencies.
+        simulated_ang_freqs = to_plot[:, 0, 0, :] * 2 * np.pi
+        # Sort by frequencies.
+        sort_args = simulated_ang_freqs[:, 0].argsort()
+        simulated_ang_freqs = simulated_ang_freqs[sort_args].squeeze()
+        simulated_amps = to_plot[:, 0, 1, :][sort_args].squeeze()
+        simulated_phase = to_plot[:, 0, 2, :][sort_args].squeeze()
         #measured_freqs = to_plot[:, 1, 0, :]
         #measured_amps = to_plot[:, 1, 1, :]
         #measured_phase = to_plot[:, 1, 2, :]
 
-    ## For a single set of data, get the transfer function once only. This
-    ## allows error to be calculated as specifically the experimental
-    ## ang_freqs are used.
-    #theory_amps = np.absolute(fft_theory[:, -1])
-    #theory_phases = np.angle(fft_theory[:, -1])
-    #amp_err, phase_err = m.calc_norm_errs([amps[:, 0], theory_amps],
-    #                                      [phases[:, 0], theory_phases])[0]
+        # Generate evenly spaced angular frequencies.
+        even_spaced_wd = np.linspace(
+            min(simulated_ang_freqs), max(simulated_ang_freqs), 5000)
 
         mmts = \
-            [[
-                [[simulated_freqs, simulated_amps]],#,
-                 #[measured_freqs, measured_amps]],
-                [[simulated_freqs, simulated_phase]]#,
-                 #[measured_freqs, measured_phase]]
-            ]]
+            [
+                [
+                    [
+                        [simulated_ang_freqs, simulated_amps, r'Simulated'],
+                        [even_spaced_wd, np.absolute(theory_resp(
+                            even_spaced_wd)), r'Theoretical']
+                    ],
+                    [
+                        [simulated_ang_freqs, simulated_phase, r'Simulated'],
+                        [even_spaced_wd, np.angle(theory_resp(even_spaced_wd)),
+                         r'Theoretical']
+                    ]
+                ]
+            ]
         p.two_by_n_plotter(
             mmts, '', {'b': parameter_set[0], 'b\'': parameter_set[1],
                        'k': parameter_set[2], 'k\'': parameter_set[3],
@@ -72,10 +82,9 @@ def prepare_to_plot(grouped_mmts, savepath=None, show=True):
                        'tfin': parameter_set[8], 'theta_0': parameter_set[9],
                        'omega_0': parameter_set[10]},
             savepath=savepath, show=show, x_axes_labels=['$\omega$/rad/s'],
-            tag='{}'.format(time()),
-            y_top_labels=[r'$\left|\frac{\theta(\omega)}{G(\omega)}\right|$/'
-                          r'rad/(Nm)'],
-            y_bottom_labels=[r'$\phi(\frac{\theta(\omega)}{G(\omega)})$/rad'])
+            tag='response-curve-{}'.format(h.time_for_name()),
+            y_top_labels=[r'$\left|R(\omega)\right|$/rad/(Nm)'],
+            y_bottom_labels=[r'$\phi(R(\omega))$/rad'])
 
 
 def read_all_data(path, fname_roots, disps_ext=r'displacements',
@@ -126,7 +135,8 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
     """Match the times to the torques and displacements and return an array 
     of those values for each of the parameter combinations.
     :param grouped_sets: All grouped data.
-    :param plot_real: Plot the real space data and save with logs."""
+    :param plot_real: Plot the real space data and save with logs.
+    :param savepath: Save path to send to the n_plotter function."""
 
     fft_mmts = []
     for group in grouped_sets:
@@ -150,16 +160,16 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
             # one dictionary with real space data and torque values.
             disps = dataset['disps']
             torques = dataset['torques']
-            analytic_torque = torques['total-torque'] - k_prime * torques[
-                'theta-sim'] - b_prime * torques['omega-sim']
+            analytic_torque = torques['total torque'] - k_prime * torques[
+                'theta_sim'] - b_prime * torques['omega_sim']
             analytic, theta_sim, omega_sim = [], [], []
 
             for t in disps['t']:
                 # match up the real and torque data times.
                 idx = (np.abs(torques['t'] - t)).argmin()
                 analytic.append(analytic_torque[idx])
-                theta_sim.append(torques['theta-sim'][idx])
-                omega_sim.append(torques['omega-sim'][idx])
+                theta_sim.append(torques['theta_sim'][idx])
+                omega_sim.append(torques['omega_sim'][idx])
             output = np.vstack((disps.as_matrix().T, analytic, theta_sim,
                                 omega_sim)).T
 
@@ -193,9 +203,8 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
                      'g_0_mag': g_0_mag, 'phi': phi, 't0': t0, 'tfin': tfin,
                      'theta_0': theta_0, 'omega_0': omega_0}, show=True,
                     savepath=savepath, x_axes_labels=['t/s'],
-                    tag='{}'.format(time()),
-                    y_top_labels=[r'$\theta$/rad'],
-                    y_bottom_labels=[r'$G_{0}\sin{(\omega t+\phi)}$/Nm'])
+                    tag='{}'.format(time()), y_top_labels=[r'$\theta$/rad'],
+                    y_bottom_labels=[r'$G_{s}(t)$/Nm'])
 
             # Times have now been matched and we are ready to obtain frequency,
             # amplitude and phase values from the output data.
@@ -204,8 +213,10 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
                            #[output[:, 4], output[:, 5]]]
             mmts = []
             for measure in measure_for:
+                # Normalise the theta by the analytic torque amplitude to get
+                # the response function.
                 mmts.append(m.one_mmt_set(
-                    output[:, 0], measure[0], measure[1], output[:, 3], b,
+                    output[:, 0], measure[0] / g_0_mag, output[:, 3], b,
                     b_prime, k, k_prime, i))
             one_dataset.append(mmts)
             one_group.append(one_dataset)
@@ -228,7 +239,6 @@ def _get_config(path, filename_root):
         config_string = config_string[0].replace('array', 'np.array')
         configs = config_string.split(',')
         config_dict = {}
-        print(configs)
         for key_string in configs:
             if 'dtype' not in key_string and 'noise_type' not in key_string:
                 key = eval(key_string.split(':')[0])
@@ -239,17 +249,3 @@ def _get_config(path, filename_root):
         # NOTE this will split the string into individual keys as long as the
         # numpy arrays only have 1 element each!
     return config_dict
-
-
-if __name__ == '__main__':
-    directory = r'C:/Users/Abhishek/OneDrive - University Of ' \
-                r'Cambridge/Project/Tests/ExperimentClasses' \
-                r'/FixedStepIntegrator/Same keff beff comparison NR/'
-    file_list = h.find_files(directory)
-    filename_roots = check_matches(file_list, num_one='all-mmts', num_two=None)
-    all_data = read_all_data(directory, filename_roots, disps_ext='all-mmts',
-                             torque_ext='all-mmts')
-    sorted_by_params = sort_data(all_data)
-    fft_data = match_torques(sorted_by_params, plot_real=True,
-                             savepath=directory + 'plots/')
-    prepare_to_plot(fft_data, savepath=directory + 'plots/')

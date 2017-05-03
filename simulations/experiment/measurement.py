@@ -3,7 +3,7 @@ being processed."""
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pyfftw
+# import pyfftw
 import scipy.fftpack as f
 import scipy.signal as sg
 
@@ -12,7 +12,6 @@ import helpers as h
 
 def calc_fft(x_axis, y_axis):
     """Calculate the FFT of y over domain x."""
-    print(y_axis)
     n = y_axis.shape[-1]  # length of the signal
     # Get frequencies, normalise by sampling rate and shift to be centred at 0.
     try:
@@ -45,8 +44,6 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.01,
 
     # Get consecutive correlations.
     xs, correlations = norm_correlations(x_axis, y_axis, n_per_segment)
-    #plt.plot(correlations)
-    #plt.show()
     # To work out the range of times that correspond to good steady state
     # values, require that the correlation exceeds 'min_lim' and the gradient
     # varies by no more than 'tol' either side. Find the range of times where
@@ -63,8 +60,6 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, min_lim=0.9, tol=0.01,
     assert np.absolute(np.mean(valid_corr - np.mean(valid_corr))) < \
         max_increase, "Steady state not reached - correlations are " \
                       "changing."
-    #plt.plot(xs, correlations)
-    #plt.show()
     ss_points = xs[exceeds_min * within_tol]
     return min(ss_points), max(ss_points)
 
@@ -79,7 +74,6 @@ def enter_ss_times(x_axis, y_axis):
         ss_times = input('Enter the time range over which the signal is steady '
                          'state.')
         ss_times = ss_times.split(' ')
-        print(ss_times)
 
         try:
             if ss_times[0] == 'none':
@@ -146,22 +140,17 @@ def calc_one_amplitude(real_disps, bins=None):
     # Get a histogram of the displacement values and find the peaks here,
     # which should occur at the endpoints for a single frequency. This is
     # where the system is slowest (stationary), hence the amplitude.
-    #plt.hist(real_disps, bins=bins)
-    #plt.show()
     results = np.histogram(real_disps, bins=bins)
+
     num = results[0]
     displacements = results[1]
     bin_centres = displacements[:-1] + np.ediff1d(displacements)
-
-    # Find the 2 biggest maxima and find their difference to get the
-    # peak-to-peak displacement, which is then halved with an error based on the
-    # width of the bins.
-    maxima = _peak_detect(num, 2)
-    max_disps = get_peak_pos(maxima, bin_centres, num)
-    max_disps[0, :] -= np.mean(displacements)
-    return np.absolute(h.combine_quantities(np.absolute(max_disps[0, :]),
-                                            max_disps[1, :],
-                                            operation='mean'))
+    peaks = np.array([bin_centres, num]).T
+    highest_peaks = peaks[:, 1].argsort()[-2:]
+    peaks = peaks[highest_peaks]
+    peaks -= np.mean(displacements)
+    amp = h.combine_quantities(np.absolute(peaks[:, 0]), operation='mean')
+    return amp
 
 
 def calc_freqs(full_fft_y, freqs, n_peaks=1):
@@ -356,18 +345,7 @@ def norm_correlations(x_axis, y_axis, n_per_segment):
     return xs, np.array(correlations).squeeze()
 
 
-if __name__ == '__main__':
-    t = np.linspace(0, 1000, 10000)
-    amp = np.sin(t) + np.sin(2 * t)
-    #plt.plot(t, amp)
-    #plt.show()
-    #filtered_amps = remove_one_frequency(t, amp, 1)
-    #plt.plot(t, np.real(filtered_amps), t, np.imag(filtered_amps))
-    #plt.show()
-    print(enter_ss_times(t, amp))
-
-
-def one_mmt_set(times, theta, omega, torque, b, b_prime, k, k_prime, i):
+def one_mmt_set(times, theta, torque, b, b_prime, k, k_prime, i):
     """Measure one set of frequency, amplitude and phase values, given the 
     values of the relevant parameters."""
     w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (

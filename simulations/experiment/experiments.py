@@ -2,7 +2,6 @@
 set of data, which can then be stored in a file."""
 
 import os
-import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +13,7 @@ import fourier_decomp as fourier
 import helpers as h
 import measurement as m
 import plotter as p
+import read_saved as r
 import theory as t
 
 
@@ -58,7 +58,7 @@ class Experiment:
     def _update_filename(self):
         """Get an updated filename with the most recent time, allowing 
         multiple files to be saved by the class."""
-        self.string_time = time.strftime("%Y-%m-%d-%H-%M-%S", time.gmtime())
+        self.string_time = h.time_for_name()
         self.filename = self.filename_root + self.string_time
 
     def run(self, tags=False, savedata=True, plot=True):
@@ -157,7 +157,6 @@ class MeasuringAccuracy(Experiment):
                                     pi_contr)
         w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (2 * i ** 2)
                         + 0j)
-        self._log('after nyquist check')
         if b - b_prime >= 0:
             if b - b_prime == 0 and np.isreal(w_res):
                 # filter out the transient frequency.
@@ -184,13 +183,11 @@ class MeasuringAccuracy(Experiment):
                 # for low frequencies, the length of time of the signal must also
                 # be sufficiently wrong for the peak position to be measured
                 # properly.
-                self._log('before mmts')
                 # Half-amplitude of peak used to calculate bandwidth.
                 freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
                 amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
                                                         (times <= ss_times[1])])
                 phase = m.calc_phase(theory[:, 1], torque)
-                self._log('after mmts')
                 return True, theory, np.array([freq, amp, phase])
             else:
                 return False, theory
@@ -214,7 +211,6 @@ class MeasuringAccuracy(Experiment):
         y0 = np.array([self.prms['theta_0'], self.prms[
             'omega_0']]).squeeze()
         times = np.arange(t0, self.prms['tfin'], self.prms['dt'])
-        self._log('after config setup')
 
         # Get the theoretical position of the peak and generate a finely
         # spaced set of frequency points around it to measure with greater
@@ -237,12 +233,10 @@ class MeasuringAccuracy(Experiment):
                               y0], pos_to_pass_through=(1, 9))
 
         ws = [w_ds, w_range]
-        self._log('after baker function')
         for j in range(len(ws)):
             all_times = h.all_combs(single_run, b_s, k_s, i_s, b_primes,
                                     k_primes, ws[j], g_0_mags, phases, 1)
 
-            self._log('after all combs run')
             # final argument 1/2 for 1 frequency peak expected.
             fft_data = []
             real_data = []
@@ -256,7 +250,6 @@ class MeasuringAccuracy(Experiment):
                 fft_mmts = np.append(fft_mmts, np.array(fft_data), axis=0)
                 fft_mmts = fft_mmts[fft_mmts[:, 0, 0].argsort()]
 
-            self._log('after fft setup')
         ang_freqs = np.array([fft_mmts[:, 0, 0],
                               fft_mmts[:, 0, 1]]).T * 2 * np.pi
         amps = np.array([fft_mmts[:, 1, 0], fft_mmts[:, 1, 1]]).T / g_0_mags
@@ -278,8 +271,7 @@ class MeasuringAccuracy(Experiment):
               [[ang_freqs, amp_err / np.max(amps[:, 0])]]],
              [[[ang_freqs, theory_phases], [ang_freqs, phases]],
               [[ang_freqs, phase_err / np.max(np.absolute(phases[:, 0]))]]]]
-        self._log('before plot')
-        print(w_res, gamma)
+
         p.two_by_n_plotter(
             theory_n_mmt, self.filename, self.prms, savepath=self.plotpath,
             show=False, x_axes_labels=['$\omega$/rad/s', '$\omega$/rad/s'],
@@ -287,7 +279,6 @@ class MeasuringAccuracy(Experiment):
                           r'arg[$R(\omega)$]/rad'],
             y_bottom_labels=[r'Normalised error in $\left|R(\omega)\right|$',
                              r'Normalised error in arg[$R(\omega)$]'])
-        self._log('after plot')
 
     def run(self, tags=None, savedata=False, plot=False):
         # Don't save data.
@@ -295,65 +286,87 @@ class MeasuringAccuracy(Experiment):
                                            plot=plot)
 
 
-class TheoryVsSimulation(Experiment):
-    """Experiment to compare the analytical theory solution to the simulated 
-    one without NR, to determine the maximum error of the simulated system."""
+class TheoryVsFourier(Experiment):
+    """Experiment to compare the analytical theory solution to the digitised 
+    sinusoidal solution."""
 
     def __init__(self):
-        super(TheoryVsSimulation, self).__init__()
+        super(TheoryVsFourier, self).__init__()
+        self.divider = self.prms['max_step_divider']
 
     def main_operation(self, plot=None):
         # Define the initial and setup conditions.
         t0 = self.prms['t0']
-        t_fin = self.prms['t_fin']
-        dt = self.prms['dt']
-        b_prime = self.prms['b_prime']
-        k_prime = self.prms['k_prime']
-        theta_sim = self.prms['theta_sim']
-        omega_sim = self.prms['omega_sim']
-        theta_0s = self.prms['theta_0s']
-        omega_0s = self.prms['omega_0s']
-        i_s = self.prms['i_s']
-        bs = self.prms['bs']
-        ks = self.prms['ks']
-        g_0_mags = self.prms['g_0_mags']
-        w_ds = self.prms['w_ds']
-        phases = self.prms['phases']
+        t_fin = self.prms['tfin']
+        w_d = self.prms['w_d']
+        dt = 2 * np.pi / (w_d * self.prms['sampling_divider'])
+        b_prime = self.prms['b\'']
+        k_prime = self.prms['k\'']
+        theta_0 = self.prms['theta_0']
+        omega_0 = self.prms['omega_0']
+        i_ = self.prms['i']
+        b_ = self.prms['b']
+        k_ = self.prms['k']
+        g_0_mag = self.prms['g_0_mag']
+        phase = self.prms['phi']
 
-        max_errs = h.all_combs(self._one_run, theta_0s, omega_0s, t0, i_s,
-                               b_prime, omega_sim, k_prime, theta_sim, bs, ks,
-                               g_0_mags, w_ds, phases, t_fin, dt,
-                               deconstruct=True)
+        max_errs = self._one_run(theta_0, omega_0, t0, i_, b_prime, k_prime, b_,
+                                 k_, g_0_mag, w_d, phase, t_fin, dt)
         max_errs = pd.DataFrame(data=max_errs, columns=[
-            'theta_0', 'omega_0', 't0', 'i', 'b\'', 'omega_sim', 'k\'',
-            'theta_sim', 'b', 'k', 'g_0_mag', 'w_d', 'phase', 't_fin', 'dt',
-            'max_theta_diff', 'max_omega_diff', 'max_theta_norm',
-            'max_omega_norm'])
+            'theta_0', 'omega_0', 't0', 'i', 'b\'', 'k\'', 'b', 'k', 'g_0_mag',
+            'w_d', 'phase', 't_fin', 'dt', 'max_theta_diff', 'max_omega_diff',
+            'max_theta_norm', 'max_omega_norm'])
         return {'max_errs': max_errs}
 
-    def _one_run(self, theta_0, omega_0, t0, i, b_prime, omega_sim, k_prime,
-                 theta_sim, b, k, g_0_mag, w_d, phase, t_fin, dt,
-                 create_plot=True):
+    def _one_run(self, theta_0, omega_0, t0, i, b_prime, k_prime, b, k,
+                 g_0_mag, w_d, phase, t_fin, dt, create_plot=True):
         """Compare experiment to theory for one set of parameters and return the 
         difference between the two. Uses only the analytic torque expression."""
         y0 = [theta_0, omega_0]
-        exp_results = c.ode_integrator(y0, t0, i, b_prime, k_prime, b, k,
-                                       g_0_mag, w_d, phase, t_fin, dt,
-                                       c.analytic_torque)
-        # Theoretical calculation.
-        sines_torque = h.baker(
-            t.calculate_sine_pi, ["", "", "", "", g_0_mag, w_d, phase],
-            pos_to_pass_through=(0, 3))
-        theory = t.calc_theory_soln(exp_results[:, 0], t0, y0, b - b_prime,
-                                    k - k_prime, i, sines_torque)
+        times = np.arange(t0, t_fin, dt / self.divider)
+
+        # Standard sine calculation.
+        # Calculate fourier series first 1000 terms.
+        ind_mag_phi = fourier.get_fourier_series(10000, w_d, dt, g_0_mag)
+        f_torque = fourier.get_torque(times, ind_mag_phi[:, 0],
+                                      ind_mag_phi[:, 1], ind_mag_phi[:, 2], w_d)
+
+        # Calculate theoretical vs actual torque and plot.
+        plt.plot(times, f_torque, label='Digitised')
+        plt.plot(times, g_0_mag * np.sin(w_d * times + phase), label='Analogue')
+        plt.tick_params(direction='out')
+        plt.grid(True)
+        plt.xlabel('t/s', fontweight='bold', fontsize=13)
+        plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
+        plt.show()
+
+        # Calculate theoretical results.
+        torque_sine = h.baker(t.calculate_sine_pi,
+                              ["", "", "", "", g_0_mag, 
+                               w_d, phase],
+                              pos_to_pass_through=(0, 3))
+        theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i, 
+                                    torque_sine)
+
+        # fourier theoretical results.
+        torque_fourier = h.baker(t.calculate_sine_pi,
+                                 ["", "", "", "", ind_mag_phi[:, 1],
+                                  w_d * ind_mag_phi[:, 0], ind_mag_phi[:, 2]],
+                                 pos_to_pass_through=(0, 3))
+        theory_fourier = t.calc_theory_soln(times, t0, y0, b - b_prime, 
+                                            k - k_prime, i, torque_fourier)
+        print(
+            "Init parameters: dt: {}, b: {}, b': {}, k: {}, k': {}, I: {}, "
+            "y0: {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
+                dt, b, b_prime, k, k_prime, i, y0, t0, t_fin, g_0_mag, w_d))
 
         # Normalise error by amplitude
-        max_theta_diff = np.max(np.abs(exp_results[:, 1] - theory[:, 1]))
-        max_omega_diff = np.max(np.abs(exp_results[:, 2] - theory[:, 2]))
-        norm_theta_diff = (exp_results[:, 1] - theory[:, 1]) / np.max(
-            exp_results[:, 1])
-        norm_omega_diff = (exp_results[:, 2] - theory[:, 2]) / np.max(
-            exp_results[:, 2])
+        max_theta_diff = np.max(np.abs(theory_fourier[:, 1] - theory[:, 1]))
+        max_omega_diff = np.max(np.abs(theory_fourier[:, 2] - theory[:, 2]))
+        norm_theta_diff = (theory_fourier[:, 1] - theory[:, 1]) / np.max(
+            theory_fourier[:, 1])
+        norm_omega_diff = (theory_fourier[:, 2] - theory[:, 2]) / np.max(
+            theory_fourier[:, 2])
         max_theta_norm = np.max(np.abs(norm_theta_diff))
         max_omega_norm = np.max(np.abs(norm_omega_diff))
 
@@ -363,19 +376,20 @@ class TheoryVsSimulation(Experiment):
             plotting_data = \
                 [
                     [
-                        [[exp_results[:, 0], exp_results[:, 1], r'Simulated'],
-                         [theory[:, 0],      theory[:, 1],      r'Analytic']],
-                        [[exp_results[:, 0], norm_theta_diff]],
+                        [[theory_fourier[:, 0], theory_fourier[:, 1],
+                          r'Digitised'],
+                         [theory[:, 0], theory[:, 1], r'Analogue']],
+                        [[theory_fourier[:, 0], norm_theta_diff]],
                     ],
                     [
-                        [[exp_results[:, 0], exp_results[:, 2], r'Simulated'],
-                         [theory[:, 0],      theory[:, 2],      r'Analytic']],
-                        [[exp_results[:, 0], norm_omega_diff]],
+                        [[theory_fourier[:, 0], theory_fourier[:, 2],
+                          r'Digitised'],
+                         [theory[:, 0], theory[:, 2], r'Analogue']],
+                        [[theory_fourier[:, 0], norm_omega_diff]],
                     ]
                 ]
             params = {'theta_0': theta_0, 'omega_0': omega_0, 't0': t0, 'I': i,
-                      'b\'': b_prime, 'omega_sim': omega_sim, 'k\'': k_prime,
-                      'theta_sim': theta_sim, 'b': b, 'k': k,
+                      'b\'': b_prime, 'k\'': k_prime, 'b': b, 'k': k,
                       'g_0_mag': g_0_mag, 'w_d': w_d, 'phi': phase,
                       't_fin': t_fin, 'dt': dt}
             p.two_by_n_plotter(
@@ -731,12 +745,10 @@ class NRRegimesPython(Experiment):
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
-            self._log('Plotted and saved.')
 
         exp_results = pd.DataFrame(results, columns=['t', 'theta', 'omega'])
         torques = pd.DataFrame(self.torques, columns=[
             't', 'total torque', 'theta_sim', 'omega_sim'])
-        self._log('Created data frames.')
         return {'displacements': exp_results, 'measured-vals': torques}
 
 
@@ -749,6 +761,7 @@ class FixedStepIntegrator(Experiment):
         """Create the variables to perform the ODE numerical integration with 
         feedback."""
         super(FixedStepIntegrator, self).__init__(config=config)
+        print(self.prms)
         # set initial parameters
         self.i = self.prms['i']
         self.b = self.prms['b']
@@ -790,13 +803,11 @@ class FixedStepIntegrator(Experiment):
         self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
         self.total_torque = self.torque_sine[i] + \
             self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
-        self._log('Torque updated.')
 
     def _get_recent_torque(self, current_time):
         """Return the last calculated torque."""
         current_reading = self._get_readings(current_time)
         self.torques = np.vstack((self.torques, current_reading))
-        self._log('Torque value read.')
         return self.total_torque
 
     def _get_readings(self, current_time):
@@ -815,7 +826,6 @@ class FixedStepIntegrator(Experiment):
     def main_operation(self, plot=True):
         """Run the ODE integrator for the system in question and save the 
         plots."""
-        self._log('Initial parameters set.', printit=True)
         torque_index = 0
         self._update_torque(self.y0[0], torque_index)
 
@@ -828,7 +838,6 @@ class FixedStepIntegrator(Experiment):
 
         results = []
         update_counter = 0
-        self._log('Pendulum initialised.', printit=True)
         while times <= self.t_fin:
             results.append([times, *y, self.total_torque, self.theta_sim,
                             self.omega_sim])
@@ -845,7 +854,6 @@ class FixedStepIntegrator(Experiment):
                 self._update_torque(y[0], torque_index)
 
         results = np.array(results).squeeze()
-        self._log('Calculation complete.', printit=True)
         if plot:
             times = m.check_nyquist(results[:, 0], self.w_d, self.b,
                                     self.b_prime, self.k, self.k_prime, self.i)
@@ -858,7 +866,6 @@ class FixedStepIntegrator(Experiment):
                 time_index = np.abs(times - num * decimal_periods).argmin()
                 num += 1
 
-            self._log('After Nyquist check')
             if self.b - self.b_prime > 0:
                 # Will only reach steady state if this is the case, otherwise no
                 # point making a response curve. Measure one point. b - b' = 0
@@ -869,7 +876,6 @@ class FixedStepIntegrator(Experiment):
                 # significantly as you move across. Consider adjusting the
                 # window size when this occurs.
                 if ss_times is not False:
-                    self._log('before fft')
                     frq, fft_theta = m.calc_fft(
                         results[:, 0][(results[:, 0] >= ss_times[0]) *
                                       (results[:, 0] <= ss_times[1])],
@@ -878,7 +884,7 @@ class FixedStepIntegrator(Experiment):
                     # for low frequencies, the length of time of the signal must
                     # also be sufficiently wrong for the peak position to be
                     # measured properly.
-                    self._log('before mmts')
+
                     # Half-amplitude of peak used to calculate bandwidth.
                     freq = m.calc_freqs(np.absolute(fft_theta), frq,
                                         n_peaks=1)
@@ -886,15 +892,12 @@ class FixedStepIntegrator(Experiment):
                     raise Exception('Panic 2.')
 
             # Calculate fourier series first 1000 terms.
-            ind = np.arange(1, 1000, 1, dtype=np.int32)
-            ind_a_b = fourier.calc_fourier_coeffs(ind, self.w_d, self.dt,
-                                                  self.g_0)
-            #freq * 2 * np.pi, self.dt, self.g_0)
-            ind_mag_phi = fourier.convert_to_mag_phis(
-                ind_a_b[:, 0], ind_a_b[:, 1], ind_a_b[:, 2])
-            f_torque = fourier.get_torque(self.torques[:, 0], ind_mag_phi[:, 0],
-                                          ind_mag_phi[:, 1], ind_mag_phi[:, 2],
+            ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
+                                                     self.g_0)
+            f_torque = fourier.get_torque(self.torques[:, 0], ind_mag_phi[:, 0], 
+                                          ind_mag_phi[:, 1], ind_mag_phi[:, 2], 
                                           self.w_d)
+            #freq * 2 * np.pi, self.dt, self.g_0)
 
             # Calculate theoretical vs actual torque and plot.
             #plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
@@ -951,7 +954,7 @@ class FixedStepIntegrator(Experiment):
 
             p.two_by_n_plotter(
                 real_space_data, self.filename, self.prms, tag='fourier-added',
-                savepath=self.plotpath, show=False, x_axes_labels=['t/s', 't/s'],
+                savepath=self.plotpath, show=True, x_axes_labels=['t/s', 't/s'],
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
@@ -962,49 +965,72 @@ class FixedStepIntegrator(Experiment):
         return {'all-mmts': exp_results}
 
 
-#configs = h.yaml_read('../configs/NRRegimesPython.yaml')
-#for divider in [50, 100, 200]:
-#    for w_d in np.arange(120, 150, 5):
-#        configs['max_step_divider'] = np.array([divider])
-#        configs['w_d'] = np.array([w_d])
-#real_space = NRRegimesPython()
-#real_space.run(plot=True)
-#fft_nr = FFTwNR()
-#fft_nr.run()
+class ReadAllData(Experiment):
+    """Read all data from a certain dataset and produce the real and fourier 
+    space plots."""
 
-#if __name__ == '__main__':
-#    configs = h.yaml_read('../configs/MeasuringAccuracy.yaml')
-#    for sqrt_ks in np.arange(5, 46, 5) * 10**(-3):
-#        for bs in np.array([1, 5]) * 10**(-7):
-#            configs['k_s'] = np.array([sqrt_ks**2])
-#            configs['b_s'] = np.array([bs])
-#            measuring_accuracy = MeasuringAccuracy(config=configs)
-#            measuring_accuracy.run()
+    def __init__(self):
+        super(ReadAllData, self).__init__()
 
-#if __name__ == '__main__':
-#    configs = h.yaml_read('../configs/NRRegimesPython.yaml')
-#    for w_d in np.linspace(41, 43, 11):
-#        configs['w_d'] = np.array([w_d])
-#        nrregimespython = NRRegimesPython(config=configs)
-#        nrregimespython.run()
-#    for w_d in np.arange(10, 140, 14):
-#        configs['w_d'] = np.array([w_d])
-#        nrregimespython = NRRegimesPython(config=configs)
-#        nrregimespython.run()
+    def main_operation(self, plot=True):
+        """Read all data from a specific folder and produce real space and 
+        fourier space plots. Use for only one set of b, k, b', k', i, 
+        etc. parameters at a time."""
+        directory = self.prms['directory'][0]
+        file_list = h.find_files(directory)
+        filename_roots = r.check_matches(file_list)
+        all_data = r.read_all_data(directory, filename_roots)
+        sorted_by_params = r.sort_data(all_data)
 
-configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
-k_eff = 1.e-3
-b_eff = 5.e-7
-for k in np.arange(1.e-4, 1.9 * k_eff, 1.e-4):
-    configs['k'] = np.array([k])
-    configs['k\''] = np.array([k - k_eff])
-    for b in np.arange(5.e-8, 1.9 * b_eff, 5.e-8):
-        configs['b'] = np.array([b])
-        configs['b\''] = np.array([b - b_eff])
-        print('k={}'.format(k), 'b={}'.format(b), 'k\'={}'.format(k - k_eff),
-              'b\'={}'.format(b - b_eff))
-        rk_test = FixedStepIntegrator()
-        rk_test.run(plot=False)
+        b = sorted_by_params[0][0]['b']
+        k = sorted_by_params[0][0]['k']
+        b_prime = sorted_by_params[0][0]['b\'']
+        k_prime = sorted_by_params[0][0]['k\'']
+        i = sorted_by_params[0][0]['i']
+
+        # Baked theoretical response function to require wd input only,
+        # which depends on the range measured.
+        need_wd = h.baker(t.theory_response, args=[b, k, i, b_prime, k_prime])
+
+        fft_data = r.match_torques(sorted_by_params, plot_real=self.prms[
+            'plot_real'][0], savepath=directory + 'plots/')
+
+        r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
+        
+    def run(self, tags=False, savedata=False, plot=True):
+        super(ReadAllData, self).run(tags=tags, savedata=savedata, plot=plot)
+
+
+#print('test effect of wrong initial conditions')
+#rk_test = FixedStepIntegrator()
+#rk_test.run()
+#read_all = ReadAllData()
+#read_all.run()
+
+
+#configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
+#k_eff = 5.e-5
+#b_eff = 5.e-7
+#i = configs['i']
+#w_res = np.sqrt(k_eff/i - b_eff**2/(2*i**2))
+#gamma = b_eff/i
+#for k in np.array([0.5 * k_eff, k_eff, 1.5 * k_eff]):
+#    configs['k'] = np.array([k])
+#    configs['k\''] = np.array([k - k_eff])
+#    for b in np.array([0.5 * b_eff, b_eff, 1.5 * b_eff]):
+#        configs['b'] = np.array([b])
+#        configs['b\''] = np.array([b - b_eff])
+#        for wd in np.linspace(w_res - gamma, w_res + gamma, 10):
+#            configs['w_d'] = wd
+#            rk_test = FixedStepIntegrator(config=configs)
+#            rk_test.run(plot=False)
+#        for wd in np.arange(10, 150, 10):
+#            configs['w_d'] = wd
+#            rk_test = FixedStepIntegrator(config=configs)
+#            rk_test.run(plot=False)
+
+theory_vs_fourier = TheoryVsFourier()
+theory_vs_fourier.run()
 
 # TODO note down the config for the Python experiment, including the type of
 # TODO integrator used and the behaviour of speed for high frequencies - the

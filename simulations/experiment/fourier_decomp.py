@@ -81,3 +81,18 @@ def get_torque(t, indices, mags, phis, ang_freq):
         ang_freq * indices, t) + np.outer(phis, np.ones(num_times)))
     torque = np.sum(torque_parts, axis=0)
     return torque
+
+
+def get_fourier_series(n, w_d, dt, g_0):
+    """Calculate first n terms of a Fourier series for the digitised sine 
+    torque. Return the value of the Fourier-calculated torque at specified 
+    times. NOTE this can't deal with phi being nonzero!
+    :param n: Number of Fourier series terms to return.
+    :param w_d: Angular frequency of sine wave.
+    :param dt: Sampling time of the sine for digitisation.
+    :param g_0: Amplitude of the driving torque."""
+    ind = np.arange(1, n, 1, dtype=np.int32)
+    ind_a_b = calc_fourier_coeffs(ind, w_d, dt, g_0)
+    ind_mag_phi = convert_to_mag_phis(ind_a_b[:, 0], ind_a_b[:, 1],
+                                      ind_a_b[:, 2])
+    return ind_mag_phi

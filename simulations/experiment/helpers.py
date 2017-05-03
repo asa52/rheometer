@@ -231,6 +231,11 @@ def find_files(path, check_type='.csv'):
     return onlyfiles
 
 
+def time_for_name():
+    """Get the current time for use in a filename."""
+    return time.strftime("%Y-%m-%d-%H-%M-%S", time.gmtime())
+
+
 def _check_iterable(variable):
     """Checks that a variable is iterable, such as tuple, list or array, 
     but is not a string."""
