@@ -755,7 +755,7 @@ class FixedStepIntegrator(Experiment):
         """Create the variables to perform the ODE numerical integration with 
         feedback."""
         super(FixedStepIntegrator, self).__init__(config=config)
-        print(self.prms)
+
         # set initial parameters
         self.i = self.prms['i']
         self.b = self.prms['b']
@@ -808,7 +808,8 @@ class FixedStepIntegrator(Experiment):
         """Get a single value of torque, theta_sim, and omega_sim, given the 
         current time."""
         current_reading = np.array(
-            [current_time, self.total_torque, self.theta_sim, self.omega_sim])
+            [current_time, self.torque_plus_noise(), self.theta_sim,
+             self.omega_sim])
         for i in range(len(current_reading)):
             try:
                 assert len(current_reading[i]) == 1
@@ -816,6 +817,11 @@ class FixedStepIntegrator(Experiment):
             except TypeError:
                 pass
         return np.array(current_reading)
+
+    def torque_plus_noise(self, noise=0):
+        """The noise parameter is either 0 or a baked noise function to 
+        generate random noise on each measurement."""
+        return self.total_torque + noise
 
     def main_operation(self, plot=True):
         """Run the ODE integrator for the system in question and save the 
@@ -880,8 +886,7 @@ class FixedStepIntegrator(Experiment):
                     # measured properly.
 
                     # Half-amplitude of peak used to calculate bandwidth.
-                    freq = m.calc_freqs(np.absolute(fft_theta), frq,
-                                        n_peaks=1)
+                    freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
                 else:
                     raise Exception('Panic 2.')
 

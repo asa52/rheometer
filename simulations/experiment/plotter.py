@@ -23,7 +23,8 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
     with the second column specifying the errors. The x axes of the top and 
     bottom plot are shared in each pair. A third entry in [x1, y1, label] is 
     a string specifying the label of the data series, if one is desired for a 
-    legend.
+    legend. A fourth entry after that can be used for the fmt (markerstyle) for 
+    that series.
     The axes labels are lists with the appropriate string labels. Axes are 
     labelled from left to right in the figure.
     params_dict specifies the parameters to be written to the text file 
@@ -32,7 +33,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
     legend formats, just before plotting. They are called as methods of the 
     figure object. The 'legend' parameter takes a dictionary of keyword 
     arguments as its value; these are passed into the fig.legend method, 
-    for example."""
+    for example. """
 
     # create subplots figure
     fig, ax = plt.subplots(ncols=len(datasets), nrows=2, sharex='col',
@@ -53,11 +54,18 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
         for j in range(len(datasets[k])):
             for one_series in datasets[k][j]:
                 axes = h.check_types_lengths(*one_series[0:2])
-                if type(one_series[-1]) is str:
-                    # Data label used for the final entry.
-                    label = one_series[-1]
+                if len(one_series) >= 3 and type(one_series[2]) is str:
+                    # Data label used for the third entry.
+                    label = one_series[2]
                 else:
                     label = None
+
+                if len(one_series) == 4 and type(one_series[3]) is str:
+                    # fmt used for the 4th entry.
+                    fmt = one_series[3]
+                else:
+                    fmt = ':'
+
                 for i in range(len(axes)):
                     if not (axes[i].ndim == 2 and axes[i].shape[-1] == 2):
                         # Data has no error bars - create error bars of zero.
@@ -68,8 +76,7 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                 else:
                     axis = ax[j, k]
                 axis.errorbar(axes[0][:, 0], axes[1][:, 0], xerr=axes[0][:, 1],
-                              yerr=axes[1][:, 1], fmt=':', alpha=0.7,
-                              label=label)
+                              yerr=axes[1][:, 1], fmt=fmt, label=label)
                 axis.tick_params(direction='out')
                 axis.grid(True)
                 if x_axis:

@@ -20,9 +20,9 @@ def calc_fft(x_axis, y_axis):
         print(x_axis[1] - x_axis[0])
     # calculate FFT using FFTW module. Then, shift and normalise.
     fft = pyfftw.builders.fft(y_axis, overwrite_input=False,
-                              planner_effort='FFTW_ESTIMATE',
-                              threads=2, auto_align_input=False,
-                              auto_contiguous=False, avoid_copy=True)
+                              planner_effort='FFTW_ESTIMATE', threads=2,
+                              auto_align_input=False, auto_contiguous=False,
+                              avoid_copy=True)
     full_fft_y = np.fft.fftshift(2 * fft() / n)
     return freqs, full_fft_y
 
@@ -57,7 +57,6 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, tol=0.03,
         max_increase, "Steady state not reached - correlations are " \
                       "changing."
     ss_points = xs[within_tol]
-    print(np.min(ss_points), np.max(ss_points))
     return np.min(ss_points), np.max(ss_points)
 
 

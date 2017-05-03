@@ -41,6 +41,7 @@ def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
     driving angular frequency.
     :param savepath: The path to save the graphs to.
     :param show: Whether to show each graph or not."""
+    mmts = [[[], []]]
 
     for parameter_set in grouped_mmts:
         to_plot = np.array(parameter_set[-1])
@@ -51,40 +52,35 @@ def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
         simulated_ang_freqs = simulated_ang_freqs[sort_args].squeeze()
         simulated_amps = to_plot[:, 0, 1, :][sort_args].squeeze()
         simulated_phase = to_plot[:, 0, 2, :][sort_args].squeeze()
+
         #measured_freqs = to_plot[:, 1, 0, :]
         #measured_amps = to_plot[:, 1, 1, :]
         #measured_phase = to_plot[:, 1, 2, :]
 
-        # Generate evenly spaced angular frequencies.
-        even_spaced_wd = np.linspace(
-            np.min(simulated_ang_freqs), np.max(simulated_ang_freqs), 5000)
+        mmts[0][0][0].append([simulated_ang_freqs, simulated_amps,
+                              r'$k={}, k\'={}, b={}, b\'={}$'.format(
+                                  parameter_set[2], parameter_set[3],
+                                  parameter_set[0], parameter_set[1]), ''])
+        mmts[0][0][1].append([simulated_ang_freqs, simulated_phase,
+                              r'$k={}, k\'={}, b={}, b\'={}$'.format(
+                                  parameter_set[2], parameter_set[3],
+                                  parameter_set[0], parameter_set[1]), ''])
 
-        mmts = \
-            [
-                [
-                    [
-                        [simulated_ang_freqs, simulated_amps, r'Simulated'],
-                        [even_spaced_wd, np.absolute(theory_resp(
-                            even_spaced_wd)), r'Theoretical']
-                    ],
-                    [
-                        [simulated_ang_freqs, simulated_phase, r'Simulated'],
-                        [even_spaced_wd, np.angle(theory_resp(even_spaced_wd)),
-                         r'Theoretical']
-                    ]
-                ]
-            ]
-        p.two_by_n_plotter(
-            mmts, '', {'b': parameter_set[0], 'b\'': parameter_set[1],
-                       'k': parameter_set[2], 'k\'': parameter_set[3],
-                       'i': parameter_set[4], 'g_0_mag': parameter_set[5],
-                       'phi': parameter_set[6], 't0': parameter_set[7],
-                       'tfin': parameter_set[8], 'theta_0': parameter_set[9],
-                       'omega_0': parameter_set[10]},
-            savepath=savepath, show=show, x_axes_labels=['$\omega$/rad/s'],
-            tag='response-curve-{}'.format(h.time_for_name()),
-            y_top_labels=[r'$\left|R(\omega)\right|$/rad/(Nm)'],
-            y_bottom_labels=[r'$\phi(R(\omega))$/rad'])
+    # Generate evenly spaced angular frequencies.
+    even_spaced_wd = np.linspace(10, 140, 5000)
+    mmts[0][0][0].append([even_spaced_wd, np.absolute(theory_resp(
+        even_spaced_wd)), r'Theoretical'])
+    mmts[0][0][1].append([even_spaced_wd, np.angle(theory_resp(even_spaced_wd)),
+                         r'Theoretical'])
+    p.two_by_n_plotter(
+        mmts, '', {'i': grouped_mmts[0][4], 'g_0_mag': grouped_mmts[0][5],
+                   'phi': grouped_mmts[0][6], 't0': grouped_mmts[0][7],
+                   'tfin': grouped_mmts[0][8], 'theta_0': grouped_mmts[0][9],
+                   'omega_0': grouped_mmts[0][10]},
+        savepath=savepath, show=show, x_axes_labels=['$\omega$/rad/s'],
+        tag='response-curve-{}'.format(h.time_for_name()),
+        y_top_labels=[r'$\left|R(\omega)\right|$/rad/(Nm)'],
+        y_bottom_labels=[r'$\phi(R(\omega))$/rad'])
 
 
 def read_all_data(path, fname_roots, disps_ext=r'displacements',
