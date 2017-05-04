@@ -68,7 +68,7 @@ def make_same_dim(*variables, ref_dim_array=np.ones(1)):
 
 def convert_to_array(variable):
     """Checks if variable is of correct type, convert to array."""
-    iterable = _check_iterable(variable)
+    iterable = check_iterable(variable)
     if iterable:
         return np.array(variable)
     else:
@@ -236,7 +236,7 @@ def time_for_name():
     return time.strftime("%Y-%m-%d-%H-%M-%S", time.gmtime())
 
 
-def _check_iterable(variable):
+def check_iterable(variable):
     """Checks that a variable is iterable, such as tuple, list or array, 
     but is not a string."""
     try:

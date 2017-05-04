@@ -76,7 +76,8 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                 else:
                     axis = ax[j, k]
                 axis.errorbar(axes[0][:, 0], axes[1][:, 0], xerr=axes[0][:, 1],
-                              yerr=axes[1][:, 1], fmt=fmt, label=label)
+                              yerr=axes[1][:, 1], fmt=fmt, label=label,
+                              markersize=2)
                 axis.tick_params(direction='out')
                 axis.grid(True)
                 if x_axis:

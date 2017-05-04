@@ -8,6 +8,7 @@ import scipy.fftpack as f
 import scipy.signal as sg
 
 import helpers as h
+import theory
 
 
 def calc_fft(x_axis, y_axis):
@@ -57,6 +58,7 @@ def identify_ss(x_axis, y_axis, n_per_segment=None, tol=0.03,
         max_increase, "Steady state not reached - correlations are " \
                       "changing."
     ss_points = xs[within_tol]
+    print(np.min(ss_points), np.max(ss_points))
     return np.min(ss_points), np.max(ss_points)
 
 
@@ -229,7 +231,7 @@ def check_nyquist(time_array, w_d, b, b_prime, k, k_prime, i):
     frequency and the transient frequency calculated from the remaining 
     parameters."""
     # At any time, the signal will consist of noise + PI + transient.
-    w2 = (k - k_prime)/i - (b - b_prime)**2/(2*i**2) + 0j
+    w2 = theory.w_res_gamma(b - b_prime, k - k_prime, i)[0] ** 2
     w_res = 0
     if w2 < 0:
         w_res = np.sqrt(-w2)  # transient oscillates
@@ -339,8 +341,7 @@ def real_corr(a, b):
 def one_mmt_set(times, theta, torque, b, b_prime, k, k_prime, i):
     """Measure one set of frequency, amplitude and phase values, given the 
     values of the relevant parameters."""
-    w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (
-        2 * i ** 2) + 0j)
+    w_res = theory.w_res_gamma(b - b_prime, k - k_prime, i)[0]
 
     if b - b_prime >= 0:
         if b - b_prime == 0 and np.isreal(w_res):

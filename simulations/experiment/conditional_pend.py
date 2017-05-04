@@ -25,11 +25,6 @@ def f_full_torque(t, y, i, b, k, g):
     return np.array([y[1], (g(t) - b * y[1] - k * y[0]) / i])
 
 
-def jac(t, y, i, b, k):
-    """The Jacobian J[i, j] = df[i]/dy[j] of the above f."""
-    return [[0, 1], [-k / i, -b / i]]
-
-
 def ode_integrator(y0, t0, i, b_prime, k_prime, b, k, g_0_mags, w_ds, phases,
                    t_fin, dt, torque_func):
     r = ode(f_analytic).set_integrator('vode')
@@ -56,13 +51,7 @@ def analytic_torque(t, omega_ds, amplitudes, phases):
     torque = 0
     for i in range(len(amplitudes)):
         torque += amplitudes[i] * np.sin(omega_ds[i] * t + phases[i])
-    # ran = np.random.uniform() * amplitudes[0] * 0.1
-    return torque #+ ran
-
-
-def main():
-    ode_integrator([0.1, 0], 0, 1e-7, 0, 0, 1e-6, 1e-6, 1e-7, 137, 0, 5, 3.8e-4,
-                   analytic_torque)
+    return torque
 
 
 def rk4(f):

@@ -13,6 +13,7 @@ import pandas as pd
 import helpers as h
 import measurement as m
 import plotter as p
+import matplotlib.pyplot as plt
 
 
 def check_matches(files_list, num_one=r'displacements',
@@ -57,21 +58,21 @@ def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
         #measured_amps = to_plot[:, 1, 1, :]
         #measured_phase = to_plot[:, 1, 2, :]
 
-        mmts[0][0][0].append([simulated_ang_freqs, simulated_amps,
-                              r'$k={}, k\'={}, b={}, b\'={}$'.format(
-                                  parameter_set[2], parameter_set[3],
-                                  parameter_set[0], parameter_set[1]), ''])
-        mmts[0][0][1].append([simulated_ang_freqs, simulated_phase,
-                              r'$k={}, k\'={}, b={}, b\'={}$'.format(
-                                  parameter_set[2], parameter_set[3],
-                                  parameter_set[0], parameter_set[1]), ''])
+        mmts[0][0].append([simulated_ang_freqs, simulated_amps,
+                          r"k={:.1e}, k'={:.1e}, b={:.1e}, b'={:.1e}".format(
+                              parameter_set[2][0], parameter_set[3][0],
+                              parameter_set[0][0], parameter_set[1][0]), '.'])
+        mmts[0][1].append([simulated_ang_freqs, simulated_phase,
+                           r"k={:.1e}, k'={:.1e}, b={:.1e}, b'={:.1e}".format(
+                               parameter_set[2][0], parameter_set[3][0],
+                               parameter_set[0][0], parameter_set[1][0]), '.'])
 
     # Generate evenly spaced angular frequencies.
     even_spaced_wd = np.linspace(10, 140, 5000)
-    mmts[0][0][0].append([even_spaced_wd, np.absolute(theory_resp(
+    mmts[0][0].append([even_spaced_wd, np.absolute(theory_resp(
         even_spaced_wd)), r'Theoretical'])
-    mmts[0][0][1].append([even_spaced_wd, np.angle(theory_resp(even_spaced_wd)),
-                         r'Theoretical'])
+    mmts[0][1].append([even_spaced_wd, np.angle(theory_resp(even_spaced_wd)),
+                      r'Theoretical'])
     p.two_by_n_plotter(
         mmts, '', {'i': grouped_mmts[0][4], 'g_0_mag': grouped_mmts[0][5],
                    'phi': grouped_mmts[0][6], 't0': grouped_mmts[0][7],
@@ -225,6 +226,25 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
     return fft_mmts
 
 
+def read_plot(filepaths, savepath=None, show=True):
+    """Read a CSV file's columns and immediately plot its displacement as a 
+    function of time. Point to multiple files to plot them on a single plot."""
+    if type(filepaths) is not str and type(filepaths) is not list:
+        raise Exception('Invalid type.')
+    if not h.check_iterable(filepaths):
+        filepaths = [filepaths]
+
+    to_plot = [[[], []]]
+    for filepath in filepaths:
+        data = pd.read_csv(filepath, index_col=0)
+        to_plot[0][0].append([data['t'], data['theta']])
+        to_plot[0][1].append([data['t'], data['omega']])
+    p.two_by_n_plotter(to_plot, start='real-comparison', params_dict={},
+                       savepath=savepath, show=show, x_axes_labels=['t/s'],
+                       y_bottom_labels=[r'$\dot{\theta}$/rad/s'],
+                       y_top_labels=[r'$\theta$/rad'])
+
+
 def _get_config(path, filename_root):
     """Given a filename root and a path, looks for log files corresponding to 
     each file name in the path/logs/ folder. Extracts the parameters used, 
@@ -250,3 +270,28 @@ def _get_config(path, filename_root):
         # NOTE this will split the string into individual keys as long as the
         # numpy arrays only have 1 element each!
     return config_dict
+
+
+if __name__ == '__main__':
+    # same beff, varying keff
+    files = [r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+             r'/FixedStepIntegrator-2017-05-03-10-39-27-all-mmts.csv',
+             r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+             r'/FixedStepIntegrator-2017-05-03-11-09-13-all-mmts.csv',
+             r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+             r'/FixedStepIntegrator-2017-05-03-10-12-01-all-mmts.csv']
+
+    # same keff, varying beff
+    #files = [r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+    #         r'/FixedStepIntegrator-2017-05-03-10-39-27-all-mmts.csv',
+    #         r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+    #         r'/FixedStepIntegrator-2017-05-03-10-48-26-all-mmts.csv',
+    #         r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+    #         r'/FixedStepIntegrator-2017-05-03-10-30-42-all-mmts.csv']
+    read_plot(files)

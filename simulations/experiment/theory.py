@@ -14,7 +14,7 @@ def calculate_cf_matrix(time, b, k, i):
     :param i: Moment of inertia.
     :return: Coefficients matrix: [[theta_A, theta_B], [omega_A, omega_B]]."""
     time = h.convert_to_array(time)
-    w2, gamma = find_w2_gamma(b, k, i)
+    w2, gamma = w_damped_gamma(b, k, i)
     if w2 > 0:
         w = np.sqrt(w2)
         theta_coeffs = np.exp(-gamma * time / 2.) * np.array([
@@ -62,12 +62,12 @@ def calculate_sine_pi(t, b, k, i, g_0_mag, w_d, phi):
     a_0, b_0, w_d = np.array([a_0]).T, np.array([b_0]).T, np.array([w_d]).T
 
     theta_pi = a_0 * np.sin(np.outer(w_d, t) + np.outer(phi, np.ones(
-        num_times))) + b_0 * np.cos(np.outer(w_d, t) + np.outer(phi, np.ones(
-        num_times)))
+        num_times))) + b_0 * np.cos(np.outer(w_d, t) +
+                                    np.outer(phi, np.ones(num_times)))
     theta_pi = np.sum(theta_pi, axis=0)
     omega_pi = a_0 * w_d * np.cos(np.outer(w_d, t) + np.outer(phi, np.ones(
-        num_times))) - b_0 * w_d * np.sin(np.outer(w_d, t) + np.outer(
-        phi, np.ones(num_times)))
+        num_times))) - b_0 * w_d * np.sin(np.outer(w_d, t) +
+                                          np.outer(phi, np.ones(num_times)))
     omega_pi = np.sum(omega_pi, axis=0)
     return np.array([theta_pi, omega_pi])
 
@@ -121,7 +121,13 @@ def theory_response(b, k, i, b_prime, k_prime, w_d):
     return transfer
 
 
-def find_w2_gamma(b, k, i):
+def w_damped_gamma(b, k, i):
     w2 = b ** 2 / (4 * i ** 2) - k / i
     gamma = b / i
     return w2, gamma
+
+
+def w_res_gamma(b, k, i):
+    w_res = np.sqrt(k / i - b ** 2 / (2 * i ** 2))
+    gamma = b / i
+    return w_res, gamma

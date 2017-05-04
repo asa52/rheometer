@@ -153,8 +153,7 @@ class MeasuringAccuracy(Experiment):
             "", "", "", "", g_0_mag, w_d, phase], pos_to_pass_through=(0, 3))
         theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i,
                                     pi_contr)
-        w_res = np.sqrt((k - k_prime) / i - (b - b_prime) ** 2 / (2 * i ** 2)
-                        + 0j)
+        w_res = t.w_res_gamma(b - b_prime, k - k_prime, i)[0]
         if b - b_prime >= 0:
             if b - b_prime == 0 and np.isreal(w_res):
                 # filter out the transient frequency.
@@ -168,21 +167,18 @@ class MeasuringAccuracy(Experiment):
             # has two steady state frequencies, the transient and PI.
             ss_times = m.identify_ss(times, theory[:, 1],
                                      n_per_segment=time_index)
-            #ss_times = m.enter_ss_times(times, theory[:, 1])
-            # TODO change the tolerance. Also note that when the window is
-            # comparable to the period, the correlation changes significantly
-            # as you move across. Consider adjusting the window size when
-            # this occurs.
+
             if ss_times is not False:
                 self._log('before fft')
                 frq, fft_theta = m.calc_fft(
                     times[(times >= ss_times[0]) * (times <= ss_times[1])],
-                    theory[:, 1][(times >= ss_times[0]) * (times <= ss_times[1])])
-                # for low frequencies, the length of time of the signal must also
-                # be sufficiently wrong for the peak position to be measured
-                # properly.
-                # Half-amplitude of peak used to calculate bandwidth.
-                freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=n_frq_peak)
+                    theory[:, 1][(times >= ss_times[0]) * (times <=
+                                                           ss_times[1])])
+                # For low frequencies, the length of time of the signal must
+                # also be sufficiently wrong for the peak position to be
+                # measured properly.
+                freq = m.calc_freqs(np.absolute(fft_theta), frq,
+                                    n_peaks=n_frq_peak)
                 amp = m.calc_one_amplitude(theory[:, 1][(times >= ss_times[0]) *
                                                         (times <= ss_times[1])])
                 phase = m.calc_phase(theory[:, 1], torque)
@@ -416,8 +412,7 @@ class NRRegimes(Experiment):
         t0 = self.prms['t0']
         t_fin = self.prms['tfin']
 
-        # Get the driving frequency and hence the sampling rate. This can be
-        # an array, which will be tested one at a time. TODO convert to array.
+        # Get the driving frequency and hence the sampling rate.
         self.w_d = self.prms['w_d']
         self.dt = 2 * np.pi / (self.w_d * 120)
         # 120 as 120 points per cycle on C code
@@ -537,7 +532,7 @@ class NRRegimes(Experiment):
         t0 = self.prms['t0']
         t_fin = self.prms['tfin']
 
-        r = ode(c.f_full_torque, c.jac)#.set_integrator('dop853')
+        r = ode(c.f_full_torque)#.set_integrator('dop853')
         self._update_torque(y0[0])
         r.set_initial_value(y0, t0).set_f_params(
             i, b, k, self._get_recent_torque).set_jac_params(i, b, k)
@@ -616,8 +611,7 @@ class NRRegimesPython(Experiment):
         self.g_0 = self.prms['g_0_mag']
         self.divider = self.prms['max_step_divider']
 
-        # Get the driving frequency and hence the sampling rate. This can be
-        # an array, which will be tested one at a time. TODO convert to array.
+        # Get the driving frequency and hence the sampling rate.
         self.w_d = self.prms['w_d']
         self.dt = 2 * np.pi / (self.w_d * 120)
         self.phi = self.prms['phi']
@@ -667,7 +661,7 @@ class NRRegimesPython(Experiment):
     def main_operation(self, plot=True):
         """Run the ODE integrator for the system in question and save the 
         plots."""
-        rd = ode(c.f_full_torque, c.jac).set_integrator(
+        rd = ode(c.f_full_torque).set_integrator(
             'vode', max_step=self.dt / self.divider)
 
         torque_index = 0
@@ -734,8 +728,8 @@ class NRRegimesPython(Experiment):
                    [sim_result_compare[:, 0], simulated_diffs[1]]]]]
 
             p.two_by_n_plotter(
-                real_space_data, self.filename, self.prms, savepath=
-                self.plotpath, show=True, x_axes_labels=['t/s', 't/s'], 
+                real_space_data, self.filename, self.prms,
+                savepath=self.plotpath, show=True, x_axes_labels=['t/s', 't/s'],
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
@@ -770,15 +764,14 @@ class FixedStepIntegrator(Experiment):
         self.divider = self.prms['max_step_divider']
         self.period_divider = self.prms['sampling_divider']
 
-        # Get the driving frequency and hence the sampling rate. This can be
-        # an array, which will be tested one at a time. TODO convert to array.
+        # Get the driving frequency and hence the sampling rate.
         self.w_d = self.prms['w_d']
         self.dt = 2 * np.pi / (self.w_d * self.period_divider)
         self.phi = self.prms['phi']
 
         # Create an array of the sine values for the analytic torque.
         self.torque_sine = self.g_0 * np.sin(self.w_d * np.arange(
-            self.t0, 2*np.pi / self.w_d + self.t0, self.dt) + self.phi)
+            self.t0, 2 * np.pi / self.w_d + self.t0, self.dt) + self.phi)
 
         # set initial parameters. For 1st run, set them equal to the actual
         # initial conditions to avoid later errors in calculation.
@@ -871,10 +864,7 @@ class FixedStepIntegrator(Experiment):
                 # point making a response curve. Measure one point. b - b' = 0
                 # has two steady state frequencies, the transient and PI.
                 ss_times = m.enter_ss_times(results[:, 0], results[:, 1])
-                # TODO change the tolerance. Also note that when the window is
-                # comparable to the period, the correlation changes
-                # significantly as you move across. Consider adjusting the
-                # window size when this occurs.
+
                 if ss_times is not False:
                     frq, fft_theta = m.calc_fft(
                         results[:, 0][(results[:, 0] >= ss_times[0]) *
