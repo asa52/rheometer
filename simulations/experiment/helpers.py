@@ -244,3 +244,10 @@ def check_iterable(variable):
         return hasattr(variable, '__iter__') and type(variable) is not str
     except TypeError:
         return False
+
+
+def order_of_mag(n):
+    """Return the order of magnitude of a number, i.e. nearest power of 10."""
+    sgn = np.sign(n)
+    mag = 10 ** np.round(np.log10(np.abs(n)) - np.log10(5.5) + 0.5)
+    return sgn * mag

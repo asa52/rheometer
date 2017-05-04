@@ -15,6 +15,7 @@ import measurement as m
 import plotter as p
 import read_saved as r
 import theory as t
+import noise_delays as n
 # import c_talker as talk
 
 
@@ -763,6 +764,7 @@ class FixedStepIntegrator(Experiment):
         self.g_0 = self.prms['g_0_mag']
         self.divider = self.prms['max_step_divider']
         self.period_divider = self.prms['sampling_divider']
+        self.delay = self.prms['delay']
 
         # Get the driving frequency and hence the sampling rate.
         self.w_d = self.prms['w_d']
@@ -957,8 +959,8 @@ class ReadAllData(Experiment):
     """Read all data from a certain dataset and produce the real and fourier 
     space plots."""
 
-    def __init__(self):
-        super(ReadAllData, self).__init__()
+    def __init__(self, config=None):
+        super(ReadAllData, self).__init__(config=config)
 
     def main_operation(self, plot=True):
         """Read all data from a specific folder and produce real space and 
@@ -986,7 +988,9 @@ class ReadAllData(Experiment):
                                                    ''], pos_to_pass_through=5)
         fft_data = r.match_torques(sorted_by_params, plot_real=self.prms[
             'plot_real'][0], savepath=directory + 'plots/')
-        r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
+        print(fft_data)
+        if plot:
+            r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
         
     def run(self, tags=False, savedata=False, plot=True):
         super(ReadAllData, self).run(tags=tags, savedata=savedata, plot=plot)

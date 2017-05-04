@@ -61,11 +61,11 @@ def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
         mmts[0][0].append([simulated_ang_freqs, simulated_amps,
                           r"k={:.1e}, k'={:.1e}, b={:.1e}, b'={:.1e}".format(
                               parameter_set[2][0], parameter_set[3][0],
-                              parameter_set[0][0], parameter_set[1][0]), '.'])
+                              parameter_set[0][0], parameter_set[1][0])])
         mmts[0][1].append([simulated_ang_freqs, simulated_phase,
                            r"k={:.1e}, k'={:.1e}, b={:.1e}, b'={:.1e}".format(
                                parameter_set[2][0], parameter_set[3][0],
-                               parameter_set[0][0], parameter_set[1][0]), '.'])
+                               parameter_set[0][0], parameter_set[1][0])])
 
     # Generate evenly spaced angular frequencies.
     even_spaced_wd = np.linspace(10, 140, 5000)
