@@ -9,13 +9,13 @@ tfin:    10.
 # Constant parameters at a time.
 i:  1.e-7    #, .0000001, .000001]
 b:  5.e-7    #, .000000005, .00000001, .00000005, .0000001]
-k:  5.e-4    #, .000001, .000005]
+k:  5.e-5    #, .000001, .000005]
 b': 0.       #1.e-9   #, .000000005, .00000001, .00000005, .0000001]
 k': 0.       #, .000001, .000005]
 
 # torque parameters - one at a time.
 g_0_mag: 1.e-7  #1.e-7  #, .0000005, .000001]
-w_d:     42.    # driving frequency  # todo these parameters need to be run
+w_d:     22.07    # driving frequency  # todo these parameters need to be run
 phi:     0.
 max_step_divider: 10
 sampling_divider: 120.

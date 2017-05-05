@@ -12,10 +12,12 @@ import conditional_pend as c
 import fourier_decomp as fourier
 import helpers as h
 import measurement as m
+import noise_delays as n
 import plotter as p
 import read_saved as r
 import theory as t
-import noise_delays as n
+
+
 # import c_talker as talk
 
 
@@ -423,14 +425,13 @@ class NRRegimes(Experiment):
         # Convert a torque from the config file to a digitised value.
         self.g0_volt = self._torque_to_volt(self.prms['g_0_mag'])
         # convert centre point of voltage range to a voltage.
-        # self.prms['torque_to_current_err'] TODO where to use this?
 
         # k' and b' conversion
         self.k_pr_volt = self._torque_to_volt(
             self.prms['k\''], subtr_midpoint=False) * self.prms['rad_to_0.1um']
         self.b_pr_volt = self._torque_to_volt(
             self.prms['b\''], subtr_midpoint=False) / self.prms['rad_to_0.1um']\
-            * self.dt   # todo check this
+            * self.dt
 
         assert len(self.k_pr_volt) == len(self.b_pr_volt) == len(self.g0_volt) \
             == 1, "Only one set of parameters can be run at once!"
@@ -634,7 +635,7 @@ class NRRegimesPython(Experiment):
         last_theta_sim = self.torques[-1, 2]
 
         # theta_sim value in torques array
-        self.theta_sim = input_theta  # todo add noise and delays here
+        self.theta_sim = input_theta
         self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
         self.total_torque = self.torque_sine[i % len(self.torque_sine)] + \
             self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
@@ -783,12 +784,10 @@ class FixedStepIntegrator(Experiment):
         self.torques = np.array([[*self.t0, self.total_torque, self.theta_sim,
                                   self.omega_sim]])
 
-    def _update_torque(self, input_theta, i):
+    def _update_torque(self, theta_w_delay, i):
         """Get the updated torque given the angular displacement in radians."""
+        self.theta_sim = theta_w_delay
         last_theta_sim = self.torques[-1, 2]
-
-        # theta_sim value in torques array
-        self.theta_sim = input_theta  # todo add noise and delays here
         self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
         self.total_torque = self.torque_sine[i] + \
             self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
@@ -813,10 +812,14 @@ class FixedStepIntegrator(Experiment):
                 pass
         return np.array(current_reading)
 
-    def torque_plus_noise(self, noise=0):
+    def torque_plus_noise(self, noise=0, *args):
         """The noise parameter is either 0 or a baked noise function to 
         generate random noise on each measurement."""
-        return self.total_torque + noise
+        if noise == 0:
+            return self.total_torque + noise
+        else:
+            # Noise is a function with the appropriate *args.
+            return self.total_torque + noise(*args)
 
     def main_operation(self, plot=True):
         """Run the ODE integrator for the system in question and save the 
@@ -846,7 +849,8 @@ class FixedStepIntegrator(Experiment):
                 torque_index += 1
                 if torque_index == self.period_divider:
                     torque_index = 0
-                self._update_torque(y[0], torque_index)
+                old_theta = n.get_old_theta(times, self.delay, results)
+                self._update_torque(old_theta, torque_index)
 
         results = np.array(results).squeeze()
         if plot:
@@ -890,13 +894,13 @@ class FixedStepIntegrator(Experiment):
                                           self.w_d)
 
             # Calculate theoretical vs actual torque and plot.
-            #plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
-            #plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
-            #plt.tick_params(direction='out')
-            #plt.grid(True)
-            #plt.xlabel('t/s', fontweight='bold', fontsize=13)
-            #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
-            #plt.show()
+            plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
+            plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
+            plt.tick_params(direction='out')
+            plt.grid(True)
+            plt.xlabel('t/s', fontweight='bold', fontsize=13)
+            plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
+            plt.show()
 
             # Calculate theoretical results.
             torque_sine = h.baker(t.calculate_sine_pi,

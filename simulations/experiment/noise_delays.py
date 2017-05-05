@@ -31,13 +31,14 @@ def single_freq(mag, time, freq=50):
 
 def one_over_f(mag, dc_mag):
     """1/f noise in terms of torque. Magnitude of noise decreases with 
-    increasing frequency (of the """
+    increasing frequency (of the current)."""
+    # TODO check this form - is it Gaussian, etc?
     offset = (mag / dc_mag) ** 2
     approx_torque_ratio = h.order_of_mag(measure_once[0][0])
     freq = np.linspace(0.01, 1000, 1000)
     current_noise = mag / np.sqrt(freq) + offset    # goes as 1/f for power.
-    return approx_torque_ratio * np.sum(np.random.normal(loc=0,
-                                                         scale=current_noise))
+    return approx_torque_ratio * np.sum(np.random.normal(
+        loc=0, scale=current_noise))
 
 
 def get_measured_vals():
@@ -67,14 +68,11 @@ def get_old_theta(current_time, delay, disp_array):
     :param delay: The delay in seconds of the measuring instrument.
     :param disp_array: The array/list in the format:
     [[time-vals-column], [theta-column], ...]."""
-    h.convert_to_array(disp_array)
+    disp_array = h.convert_to_array(disp_array)
     old_time = current_time - delay
     old_enough = disp_array[np.where(disp_array[:, 0] <= old_time)]
     closest = (np.abs(old_enough[:, 0] - old_time)).argmin()
-    but_one = closest - 1 if closest > 0 else 0
-    return old_enough[closest, 1], old_enough[but_one, 1]
+    return old_enough[closest, 1]
 
 
 measure_once = get_measured_vals()
-
-print(get_old_theta(10, 2, np.array([[1,2,3,4], [2,3,4,5]])))
