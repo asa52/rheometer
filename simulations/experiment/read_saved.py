@@ -13,7 +13,6 @@ import pandas as pd
 import helpers as h
 import measurement as m
 import plotter as p
-import matplotlib.pyplot as plt
 
 
 def check_matches(files_list, num_one=r'displacements',

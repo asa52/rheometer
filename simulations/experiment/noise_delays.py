@@ -71,8 +71,16 @@ def get_old_theta(current_time, delay, disp_array):
     disp_array = h.convert_to_array(disp_array)
     old_time = current_time - delay
     old_enough = disp_array[np.where(disp_array[:, 0] <= old_time)]
+    if len(old_enough) == 0:
+        old_enough = np.array([disp_array[0, :]])
     closest = (np.abs(old_enough[:, 0] - old_time)).argmin()
     return old_enough[closest, 1]
+
+
+def varying_delay(min_delay, max_delay):
+    """Return a delay time uniformly distributed between min_delay and 
+    max_delay."""
+    return np.random.uniform(min_delay, max_delay)
 
 
 measure_once = get_measured_vals()

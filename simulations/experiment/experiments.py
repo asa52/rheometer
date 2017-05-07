@@ -42,19 +42,24 @@ class Experiment:
         self.log_text = ''
 
         # Create appropriate directories and read config_file.
-        self.savepath = '../../../Tests/ExperimentClasses/{}/'.format(
-            self.__class__.__name__)
-        self.logpath = self.savepath + 'logs/'
-        self.plotpath = self.savepath + 'plots/'
         self.config_path = '../configs/'
-        if not os.path.exists(self.logpath):
-            os.makedirs(self.logpath)
-        if not os.path.exists(self.plotpath):
-            os.makedirs(self.plotpath)
         if type(config) is not dict:
             self.prms = h.yaml_read(self.config_path + self.config)
         else:
             self.prms = config
+
+        self.savepath = '../../../Tests/ExperimentClasses/{}/'.format(
+            self.__class__.__name__)
+        self.savepath += 'Deltat={},keff={},b_pr={},beff={},delay={}/'.format(
+            self.prms['sampling_divider'][0], self.prms['k'][0] - self.prms[
+                'k\''][0], self.prms['b\''][0], self.prms['b'][0] - self.prms[
+                'b\''][0], self.prms['delay'][0])
+        self.logpath = self.savepath + 'logs/'
+        self.plotpath = self.savepath + 'plots/'
+        if not os.path.exists(self.logpath):
+            os.makedirs(self.logpath)
+        if not os.path.exists(self.plotpath):
+            os.makedirs(self.plotpath)
 
     def _update_filename(self):
         """Get an updated filename with the most recent time, allowing 
@@ -865,52 +870,46 @@ class FixedStepIntegrator(Experiment):
                 time_index = np.abs(times - num * decimal_periods).argmin()
                 num += 1
 
-            if self.b - self.b_prime > 0:
-                # Will only reach steady state if this is the case, otherwise no
-                # point making a response curve. Measure one point. b - b' = 0
-                # has two steady state frequencies, the transient and PI.
-                ss_times = m.enter_ss_times(results[:, 0], results[:, 1])
-
-                if ss_times is not False:
-                    frq, fft_theta = m.calc_fft(
-                        results[:, 0][(results[:, 0] >= ss_times[0]) *
-                                      (results[:, 0] <= ss_times[1])],
-                        results[:, 1][(results[:, 0] >= ss_times[0]) *
-                                      (results[:, 0] <= ss_times[1])])
-                    # for low frequencies, the length of time of the signal must
-                    # also be sufficiently wrong for the peak position to be
-                    # measured properly.
-
-                    # Half-amplitude of peak used to calculate bandwidth.
-                    freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
-                else:
-                    raise Exception('Panic 2.')
+            #if self.b - self.b_prime > 0:
+            #    # Will only reach steady state if this is the case,
+                # otherwise no
+            #    # point making a response curve. Measure one point. b - b' = 0
+            #    # has two steady state frequencies, the transient and PI.
+            #    ss_times = m.identify_ss(results[:, 0], results[:, 1])
+#
+            #    if ss_times is not False:
+            #        frq, fft_theta = m.calc_fft(
+            #            results[:, 0][(results[:, 0] >= ss_times[0]) *
+            #                          (results[:, 0] <= ss_times[1])],
+            #            results[:, 1][(results[:, 0] >= ss_times[0]) *
+            #                          (results[:, 0] <= ss_times[1])])
+            #        # for low frequencies, the length of time of the signal
+                # must
+            #        # also be sufficiently wrong for the peak position to be
+            #        # measured properly.
+#
+            #        # Half-amplitude of peak used to calculate bandwidth.
+            #        freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
+            #    else:
+            #        raise Exception('Panic 2.')
 
             # Calculate fourier series first 1000 terms.
             ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
                                                      self.g_0)
-            f_torque = fourier.get_torque(self.torques[:, 0], ind_mag_phi[:, 0], 
-                                          ind_mag_phi[:, 1], ind_mag_phi[:, 2], 
-                                          self.w_d)
+            #f_torque = fourier.get_torque(self.torques[:, 0], ind_mag_phi[:,
+            ##  0],
+            #                              ind_mag_phi[:, 1], ind_mag_phi[:,
+            # 2],
+             #                             self.w_d)
 
             # Calculate theoretical vs actual torque and plot.
-            plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
-            plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
-            plt.tick_params(direction='out')
-            plt.grid(True)
-            plt.xlabel('t/s', fontweight='bold', fontsize=13)
-            plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
-            plt.show()
-
-            # Calculate theoretical results.
-            torque_sine = h.baker(t.calculate_sine_pi,
-                                  ["", "", "", "", ind_mag_phi[:, 1],
-                                   self.w_d * ind_mag_phi[:, 0],
-                                   ind_mag_phi[:, 2]],
-                                  pos_to_pass_through=(0, 3))
-            theory = t.calc_theory_soln(
-                results[:, 0], self.t0, self.y0, self.b - self.b_prime,
-                self.k - self.k_prime, self.i, torque_sine)
+            #plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
+            #plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
+            #plt.tick_params(direction='out')
+            #plt.grid(True)
+            #plt.xlabel('t/s', fontweight='bold', fontsize=13)
+            #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
+            #plt.show()
 
             # fourier theoretical results.
             torque_fourier = h.baker(t.calculate_sine_pi,
@@ -929,18 +928,17 @@ class FixedStepIntegrator(Experiment):
 
             # Find absolute errors and plot.
             iterator_diffs = m.calc_norm_errs(
-                [results[:, 1], theory[:, 1]], [results[:, 2], theory[:, 2]])[1]
+                [results[:, 1], theory_fourier[:, 1]],
+                [results[:, 2], theory_fourier[:, 2]])[1]
             simu_diffs = m.calc_norm_errs([results[:, 4], results[:, 1]],
                                           [results[:, 5], results[:, 2]])[1]
             real_space_data = \
-                [[[[theory[:, 0], theory[:, 1]],
-                   [theory_fourier[:, 0], theory_fourier[:, 1]],
+                [[[[theory_fourier[:, 0], theory_fourier[:, 1]],
                    [results[:, 0], results[:, 1]],
                    [results[:, 0], results[:, 4]]],
                   [[results[:, 0], iterator_diffs[0]],
                    [results[:, 0], simu_diffs[0]]]],
-                 [[[theory[:, 0], theory[:, 2]],
-                   [theory_fourier[:, 0], theory_fourier[:, 2]],
+                 [[[theory_fourier[:, 0], theory_fourier[:, 2]],
                    [results[:, 0], results[:, 2]],
                    [results[:, 0], results[:, 5]]],
                   [[results[:, 0], iterator_diffs[1]],
@@ -948,7 +946,8 @@ class FixedStepIntegrator(Experiment):
 
             p.two_by_n_plotter(
                 real_space_data, self.filename, self.prms, tag='fourier-added',
-                savepath=self.plotpath, show=True, x_axes_labels=['t/s', 't/s'],
+                savepath=self.plotpath, show=False, x_axes_labels=['t/s',
+                                                                   't/s'],
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
@@ -992,7 +991,6 @@ class ReadAllData(Experiment):
                                                    ''], pos_to_pass_through=5)
         fft_data = r.match_torques(sorted_by_params, plot_real=self.prms[
             'plot_real'][0], savepath=directory + 'plots/')
-        print(fft_data)
         if plot:
             r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
         
