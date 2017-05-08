@@ -342,7 +342,7 @@ def one_mmt_set(times, theta, torque, b, b_prime, k, k_prime, i):
     """Measure one set of frequency, amplitude and phase values, given the 
     values of the relevant parameters."""
     w_res = theory.w_res_gamma(b - b_prime, k - k_prime, i)[0]
-
+    times, theta, torque = h.check_types_lengths(times, theta, torque)
     if b - b_prime >= 0:
         if b - b_prime == 0 and np.isreal(w_res):
             # filter out the transient frequency if it will never

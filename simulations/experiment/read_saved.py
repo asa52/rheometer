@@ -115,7 +115,7 @@ def read_all_data(path, fname_roots, disps_ext=r'displacements',
 
 def sort_data(all_datasets, all_same=False,
               sort_by=('b', 'phi', "b'", 't0', 'k', 'omega_0', 'tfin', 'i',
-                       "k'", 'g_0_mag', 'theta_0')):
+                       "k'", 'g_0_mag', 'theta_0', 'delay')):
     """Sort all data by grouping according to parameter values. Return a list of 
     lists of dictionaries. If all_same is True, just returns the entire 
     thing as if all parameters belong to one set."""
@@ -154,8 +154,9 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
         w_d = group[0]['w_d']
         theta_0 = group[0]['theta_0']
         omega_0 = group[0]['omega_0']
+        delay = group[0]['delay']
         one_group = [b, b_prime, k, k_prime, i, g_0_mag, phi, t0, tfin, theta_0,
-                     omega_0]
+                     omega_0, delay]
         one_dataset = []
         for dataset in group:
             # one dictionary with real space data and torque values.
@@ -202,8 +203,8 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
                     real_space, 't-torque',
                     {'b': b, 'b\'': b_prime, 'k': k, 'k\'': k_prime, 'i': i,
                      'g_0_mag': g_0_mag, 'phi': phi, 't0': t0, 'tfin': tfin,
-                     'theta_0': theta_0, 'omega_0': omega_0}, show=True,
-                    savepath=savepath, x_axes_labels=['t/s'],
+                     'theta_0': theta_0, 'omega_0': omega_0, 'delay': delay},
+                    show=True, savepath=savepath, x_axes_labels=['t/s'],
                     tag='{}'.format(time()), y_top_labels=[r'$\theta$/rad'],
                     y_bottom_labels=[r'$G_{s}(t)$/Nm'])
 

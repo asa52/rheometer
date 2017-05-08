@@ -25,7 +25,8 @@ class Experiment:
     """Define experiments here, with input data, an output file to save to, 
     and a sequence of operations that generates a final array of results."""
 
-    def __init__(self, config=None, filename=None, description=None):
+    def __init__(self, config=None, filename=None, description=None,
+                 normal_structure=True):
         # Set initial conditions. Create output file with the given name.
         # Read config parameters from a YAML file or feed in dictionary
         # directly. Create a timer but don't start. Description describes the
@@ -48,12 +49,17 @@ class Experiment:
         else:
             self.prms = config
 
-        self.savepath = '../../../Tests/ExperimentClasses/{}/'.format(
+        self.savepath_root = '../../../Tests/ExperimentClasses/{}/'.format(
             self.__class__.__name__)
-        self.savepath += 'Deltat={},keff={},b_pr={},beff={},delay={}/'.format(
-            self.prms['sampling_divider'][0], self.prms['k'][0] - self.prms[
-                'k\''][0], self.prms['b\''][0], self.prms['b'][0] - self.prms[
-                'b\''][0], self.prms['delay'][0])
+        if normal_structure:
+            # Normal folder structure
+            self.savepath = self.savepath_root
+        else:
+            self.params_name = 'Deltat={},keff={},b_pr={},beff={},delay={}/'.format(
+                self.prms['sampling_divider'][0], self.prms['k'][0] - self.prms[
+                    'k\''][0], self.prms['b\''][0], self.prms['b'][0] - self.prms[
+                                                      'b\''][0], self.prms['delay'][0])
+            self.savepath = self.savepath_root + self.params_name
         self.logpath = self.savepath + 'logs/'
         self.plotpath = self.savepath + 'plots/'
         if not os.path.exists(self.logpath):
@@ -752,10 +758,11 @@ class FixedStepIntegrator(Experiment):
     integrator function in the time domain for one set of control parameters, 
     allowing for variable noise and delays to be introduced at any stage."""
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, norm_struct=True):
         """Create the variables to perform the ODE numerical integration with 
         feedback."""
-        super(FixedStepIntegrator, self).__init__(config=config)
+        super(FixedStepIntegrator, self).__init__(config=config,
+                                                  normal_structure=norm_struct)
 
         # set initial parameters
         self.i = self.prms['i']
@@ -858,6 +865,23 @@ class FixedStepIntegrator(Experiment):
                 self._update_torque(old_theta, torque_index)
 
         results = np.array(results).squeeze()
+        # Calculate fourier series first 1000 terms.
+        ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
+                                                 self.g_0)
+        # fourier theoretical results.
+        torque_fourier = h.baker(t.calculate_sine_pi,
+                                 ["", "", "", "", ind_mag_phi[:, 1],
+                                  self.w_d * ind_mag_phi[:, 0],
+                                  ind_mag_phi[:, 2]],
+                                 pos_to_pass_through=(0, 3))
+        theory_fourier = t.calc_theory_soln(
+            results[:, 0], self.t0, self.y0, self.b - self.b_prime,
+                                             self.k - self.k_prime, self.i,
+            torque_fourier)
+        f_torque = fourier.get_torque(results[:, 0], ind_mag_phi[:, 0],
+                                      ind_mag_phi[:, 1], ind_mag_phi[:, 2],
+                                      self.w_d)
+
         if plot:
             times = m.check_nyquist(results[:, 0], self.w_d, self.b,
                                     self.b_prime, self.k, self.k_prime, self.i)
@@ -893,15 +917,6 @@ class FixedStepIntegrator(Experiment):
             #    else:
             #        raise Exception('Panic 2.')
 
-            # Calculate fourier series first 1000 terms.
-            ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
-                                                     self.g_0)
-            #f_torque = fourier.get_torque(self.torques[:, 0], ind_mag_phi[:,
-            ##  0],
-            #                              ind_mag_phi[:, 1], ind_mag_phi[:,
-            # 2],
-             #                             self.w_d)
-
             # Calculate theoretical vs actual torque and plot.
             #plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
             #plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
@@ -911,15 +926,6 @@ class FixedStepIntegrator(Experiment):
             #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
             #plt.show()
 
-            # fourier theoretical results.
-            torque_fourier = h.baker(t.calculate_sine_pi,
-                                     ["", "", "", "", ind_mag_phi[:, 1],
-                                      self.w_d * ind_mag_phi[:, 0],
-                                      ind_mag_phi[:, 2]],
-                                     pos_to_pass_through=(0, 3))
-            theory_fourier = t.calc_theory_soln(
-                results[:, 0], self.t0, self.y0, self.b - self.b_prime,
-                self.k - self.k_prime, self.i, torque_fourier)
             print(
                 "Init parameters: dt: {}, b: {}, b': {}, k: {}, k': {}, I: {}, "
                 "y0: {}, t0: {}, tfin: {}, g0: {}, w_d: {}".format(
@@ -943,18 +949,154 @@ class FixedStepIntegrator(Experiment):
                    [results[:, 0], results[:, 5]]],
                   [[results[:, 0], iterator_diffs[1]],
                    [results[:, 0], simu_diffs[1]]]]]
-
             p.two_by_n_plotter(
                 real_space_data, self.filename, self.prms, tag='fourier-added',
-                savepath=self.plotpath, show=False, x_axes_labels=['t/s',
-                                                                   't/s'],
+                savepath=self.savepath, show=False, x_axes_labels=['t/s',
+                                                                        't/s'],
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
-
+        results = np.hstack((results, np.array([f_torque]).T))
         exp_results = pd.DataFrame(
             results, columns=['t', 'theta', 'omega', 'total-torque',
-                              'theta-sim', 'omega-sim'])
+                              'theta-sim', 'omega-sim', 'sine-torque'])
+        return {'all-mmts': exp_results}
+
+
+class FixedStepIntegratorError(Experiment):
+    """Tests the theoretical against the manually written RK4 fixed step ODE 
+    integrator function in the time domain for one set of control parameters, 
+    allowing for variable noise and delays to be introduced at any stage."""
+
+    def __init__(self, config=None, norm_struct=True):
+        """Create the variables to perform the ODE numerical integration with 
+        feedback."""
+        super(FixedStepIntegratorError, self).__init__(
+            config=config, normal_structure=norm_struct)
+
+        # set initial parameters
+        self.i = self.prms['i']
+        self.b = self.prms['b']
+        self.k = self.prms['k']
+        self.k_prime = self.prms['k\'']
+        self.b_prime = self.prms['b\'']
+        self.y0 = np.array([self.prms['theta_0'],
+                            self.prms['omega_0']]).squeeze()
+        self.t0 = h.convert_to_array(self.prms['t0'])
+        self.t_fin = self.prms['tfin']
+        self.g_0 = self.prms['g_0_mag']
+        self.divider = self.prms['max_step_divider']
+        self.period_divider = self.prms['sampling_divider']
+        self.delay = self.prms['delay']
+
+        # Get the driving frequency and hence the sampling rate.
+        self.w_d = self.prms['w_d']
+        self.dt = 2 * np.pi / (self.w_d * self.period_divider)
+        self.phi = self.prms['phi']
+
+        # Create an array of the sine values for the analytic torque.
+        self.torque_sine = self.g_0 * np.sin(self.w_d * np.arange(
+            self.t0, 2 * np.pi / self.w_d + self.t0, self.dt) + self.phi)
+
+        # set initial parameters. For 1st run, set them equal to the actual
+        # initial conditions to avoid later errors in calculation.
+        self.total_torque = self.torque_sine[0]  # Only analytic torque here.
+        self.theta_sim = self.y0[0]
+        self.omega_sim = self.y0[1]
+        self.torques = np.array([[*self.t0, self.total_torque, self.theta_sim,
+                                  self.omega_sim]])
+
+    def _update_torque(self, theta_w_delay, i):
+        """Get the updated torque given the angular displacement in radians."""
+        self.theta_sim = theta_w_delay
+        last_theta_sim = self.torques[-1, 2]
+        self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
+        self.total_torque = self.torque_sine[i] + \
+            self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
+
+    def _get_recent_torque(self, current_time):
+        """Return the last calculated torque."""
+        current_reading = self._get_readings(current_time)
+        self.torques = np.vstack((self.torques, current_reading))
+        return self.total_torque
+
+    def _get_readings(self, current_time):
+        """Get a single value of torque, theta_sim, and omega_sim, given the 
+        current time."""
+        current_reading = np.array(
+            [current_time, self.torque_plus_noise(), self.theta_sim,
+             self.omega_sim])
+        for i in range(len(current_reading)):
+            try:
+                assert len(current_reading[i]) == 1
+                current_reading[i] = current_reading[i][0]
+            except TypeError:
+                pass
+        return np.array(current_reading)
+
+    def torque_plus_noise(self, noise=0, *args):
+        """The noise parameter is either 0 or a baked noise function to 
+        generate random noise on each measurement."""
+        if noise == 0:
+            return self.total_torque + noise
+        else:
+            # Noise is a function with the appropriate *args.
+            return self.total_torque + noise(*args)
+
+    def main_operation(self, plot=True):
+        """Run the ODE integrator for the system in question and save the 
+        plots."""
+        torque_index = 0
+        self._update_torque(self.y0[0], torque_index)
+
+        f_baked = h.baker(c.f_full_torque,
+                          ["", "", self.i, self.b, self.k,
+                           self._get_recent_torque], pos_to_pass_through=(0, 1))
+        # Set initial conditions
+        dy = c.rk4(f_baked)
+        times, y, stepsize = *self.t0, self.y0, self.dt[0] / self.divider[0]
+
+        results = []
+        update_counter = 0
+        while times <= self.t_fin:
+            results.append([times, *y, self.total_torque, self.theta_sim,
+                            self.omega_sim])
+            times, y = times + stepsize, y + dy(times, y, stepsize)
+            update_counter += 1
+            # For a fixed step size, we can just repeat the torque
+            # recalculation every self.divider steps, so there is no
+            # overshooting.
+            if update_counter == self.divider:
+                update_counter = 0
+                torque_index += 1
+                if torque_index == self.period_divider:
+                    torque_index = 0
+                old_theta = n.get_old_theta(times, self.delay, results)
+                self._update_torque(old_theta, torque_index)
+
+        results = np.array(results).squeeze()
+        # Calculate fourier series first 1000 terms.
+        ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
+                                                 self.g_0)
+        # fourier theoretical results.
+        torque_fourier = h.baker(t.calculate_sine_pi,
+                                 ["", "", "", "", ind_mag_phi[:, 1],
+                                  self.w_d * ind_mag_phi[:, 0],
+                                  ind_mag_phi[:, 2]],
+                                 pos_to_pass_through=(0, 3))
+        theory_fourier = t.calc_theory_soln(
+            results[:, 0], self.t0, self.y0, self.b - self.b_prime,
+            self.k - self.k_prime, self.i, torque_fourier)
+        ss_bit_theory = theory_fourier[:, 1][np.where(
+            theory_fourier[:, 0] > self.t_fin - 2)]
+        # Find maximum error over amplitude.
+        iterator_diffs = np.max(m.calc_norm_errs(
+            [results[:, 1], theory_fourier[:, 1]],
+            [results[:, 2], theory_fourier[:, 2]])[1] / np.max(ss_bit_theory))
+        exp_results = pd.DataFrame(
+            np.array([self.b, self.k, self.t_fin, self.period_divider,
+                      [iterator_diffs]]).T,
+            columns=['b', 'k', 'tfin', 'divider', 'max-frac-err'])
         return {'all-mmts': exp_results}
 
 
@@ -962,8 +1104,9 @@ class ReadAllData(Experiment):
     """Read all data from a certain dataset and produce the real and fourier 
     space plots."""
 
-    def __init__(self, config=None):
-        super(ReadAllData, self).__init__(config=config)
+    def __init__(self, config=None, norm_struct=True):
+        super(ReadAllData, self).__init__(config=config,
+                                          normal_structure=norm_struct)
 
     def main_operation(self, plot=True):
         """Read all data from a specific folder and produce real space and 
@@ -991,6 +1134,7 @@ class ReadAllData(Experiment):
                                                    ''], pos_to_pass_through=5)
         fft_data = r.match_torques(sorted_by_params, plot_real=self.prms[
             'plot_real'][0], savepath=directory + 'plots/')
+        print(fft_data)
         if plot:
             r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
         
