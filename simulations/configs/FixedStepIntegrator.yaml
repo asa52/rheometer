@@ -20,3 +20,4 @@ phi:     0.
 max_step_divider: 10
 sampling_divider: 120.
 delay:   0.
+num_terms: 20

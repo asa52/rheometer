@@ -14,6 +14,13 @@ def johnson_nyquist(temp, resistance, mmt_time):
     return approx_torque_ratio * np.random.normal(0, current_noise)
 
 
+def mechanical_noise(magnitude):
+    """Simulate mechanical noise in the torque by uniform random sampling 
+    from a distribution of specified magnitude."""
+    # TODO MODIFY FOR sinusoidal oscillations
+    return np.random.uniform(-magnitude, magnitude)
+
+
 def shot(current, mmt_time):
     """Shot noise in terms of torque."""
     current_noise_var = 2 * const.e * current / mmt_time
@@ -27,18 +34,6 @@ def single_freq(mag, time, freq=50):
     ang_freq = freq * 2 * np.pi
     approx_torque_ratio = h.order_of_mag(measure_once[0][0])
     return approx_torque_ratio * mag * np.sin(ang_freq * time)
-
-
-def one_over_f(mag, dc_mag):
-    """1/f noise in terms of torque. Magnitude of noise decreases with 
-    increasing frequency (of the current)."""
-    # TODO check this form - is it Gaussian, etc?
-    offset = (mag / dc_mag) ** 2
-    approx_torque_ratio = h.order_of_mag(measure_once[0][0])
-    freq = np.linspace(0.01, 1000, 1000)
-    current_noise = mag / np.sqrt(freq) + offset    # goes as 1/f for power.
-    return approx_torque_ratio * np.sum(np.random.normal(
-        loc=0, scale=current_noise))
 
 
 def get_measured_vals():

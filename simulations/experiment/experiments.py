@@ -298,8 +298,8 @@ class TheoryVsFourier(Experiment):
     """Experiment to compare the analytical theory solution to the digitised 
     sinusoidal solution."""
 
-    def __init__(self):
-        super(TheoryVsFourier, self).__init__()
+    def __init__(self, config=None):
+        super(TheoryVsFourier, self).__init__(config=config)
         self.divider = self.prms['max_step_divider']
 
     def main_operation(self, plot=None):
@@ -317,37 +317,42 @@ class TheoryVsFourier(Experiment):
         k_ = self.prms['k']
         g_0_mag = self.prms['g_0_mag']
         phase = self.prms['phi']
+        num_terms = self.prms['num_terms']
 
-        max_errs = self._one_run(theta_0, omega_0, t0, i_, b_prime, k_prime, b_,
-                                 k_, g_0_mag, w_d, phase, t_fin, dt)
-        max_errs = pd.DataFrame(data=max_errs, columns=[
-            'theta_0', 'omega_0', 't0', 'i', 'b\'', 'k\'', 'b', 'k', 'g_0_mag',
-            'w_d', 'phase', 't_fin', 'dt', 'max_theta_diff', 'max_omega_diff',
-            'max_theta_norm', 'max_omega_norm'])
-        return {'max_errs': max_errs}
+        max_errs = self._one_run(theta_0, omega_0, t0, i_, b_prime,
+                                 k_prime, b_, k_, g_0_mag, w_d, phase, t_fin,
+                                 dt, num_terms)
+        #max_errs = np.expand_dims(max_errs, -1).T
+        #max_errs = pd.DataFrame(data=max_errs, columns=[
+        #    'max_theta_diff', 'max_omega_diff', 'max_theta_norm',
+        #    'max_omega_norm'])
+        return np.array([max_errs])
 
     def _one_run(self, theta_0, omega_0, t0, i, b_prime, k_prime, b, k,
-                 g_0_mag, w_d, phase, t_fin, dt, create_plot=True):
+                 g_0_mag, w_d, phase, t_fin, dt, num_terms, create_plot=False):
         """Compare experiment to theory for one set of parameters and return the 
         difference between the two. Uses only the analytic torque expression."""
-        y0 = [theta_0, omega_0]
+        y0 = np.array([theta_0, omega_0]).squeeze()
         times = np.arange(t0, t_fin, dt / self.divider)
-
+        try:
+            w_d = t.w_res_gamma(b - b_prime, k - k_prime, i)[0]
+        except ValueError:
+            return []
         # Standard sine calculation.
-        # Calculate fourier series first 1000 terms.
-        ind_mag_phi = fourier.get_fourier_series(1000, w_d, dt, g_0_mag)
-        print(ind_mag_phi)
+        # Calculate fourier series first num_terms terms.
+        ind_mag_phi = fourier.get_fourier_series(num_terms, w_d, dt, g_0_mag)
         f_torque = fourier.get_torque(times, ind_mag_phi[:, 0],
                                       ind_mag_phi[:, 1], ind_mag_phi[:, 2], w_d)
 
         # Calculate theoretical vs actual torque and plot.
-        plt.plot(times, f_torque, label='Digitised')
-        plt.plot(times, g_0_mag * np.sin(w_d * times + phase), label='Analogue')
-        plt.tick_params(direction='out')
-        plt.grid(True)
-        plt.xlabel('t/s', fontweight='bold', fontsize=13)
-        plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
-        plt.show()
+        #plt.plot(times, f_torque, label='Digitised')
+        #plt.plot(times, g_0_mag * np.sin(w_d * times + phase),
+        ## label='Analogue')
+        #plt.tick_params(direction='out')
+        #plt.grid(True)
+        #plt.xlabel('t/s', fontweight='bold', fontsize=13)
+        #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
+        #plt.show()
 
         # Calculate theoretical results.
         torque_sine = h.baker(t.calculate_sine_pi,
@@ -406,8 +411,9 @@ class TheoryVsFourier(Experiment):
                                  r'|\dot{\theta}_{max}|$'],
                 legend={'loc': 'upper center', 'bbox_to_anchor': (0.5, 1),
                         'ncol': 2})
-
-        return [max_theta_diff, max_omega_diff, max_theta_norm, max_omega_norm]
+        print(b, k, i, num_terms, max_theta_norm, max_omega_norm)
+        return [b, k, i, num_terms, max_theta_diff, max_omega_diff,
+                max_theta_norm, max_omega_norm]
 
 
 class NRRegimes(Experiment):
@@ -627,6 +633,7 @@ class FixedStepIntegrator(Experiment):
         self.divider = self.prms['max_step_divider']
         self.period_divider = self.prms['sampling_divider']
         self.delay = self.prms['delay']
+        self.num_terms = self.prms['num_terms'][0]
 
         # Get the driving frequency and hence the sampling rate.
         self.w_d = self.prms['w_d']
@@ -714,9 +721,9 @@ class FixedStepIntegrator(Experiment):
                 self._update_torque(old_theta, torque_index)
 
         results = np.array(results).squeeze()
-        # Calculate fourier series first 1000 terms.
-        ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
-                                                 self.g_0)
+        # Calculate fourier series first num_terms terms.
+        ind_mag_phi = fourier.get_fourier_series(self.num_terms, self.w_d,
+                                                 self.dt, self.g_0)
         # fourier theoretical results.
         torque_fourier = h.baker(t.calculate_sine_pi,
                                  ["", "", "", "", ind_mag_phi[:, 1],
@@ -800,8 +807,7 @@ class FixedStepIntegrator(Experiment):
                    [results[:, 0], simu_diffs[1]]]]]
             p.two_by_n_plotter(
                 real_space_data, self.filename, self.prms, tag='fourier-added',
-                savepath=self.savepath, show=True, x_axes_labels=['t/s',
-                                                                        't/s'],
+                savepath=self.savepath, show=True, x_axes_labels=['t/s', 't/s'],
                 y_top_labels=[r'$\theta$/rad', r'$\dot{\theta}$/rad/s'],
                 y_bottom_labels=[r'$\Delta\theta$/rad',
                                  r'$\Delta\dot{\theta}$/rad/s'])
@@ -924,8 +930,8 @@ class FixedStepIntegratorError(Experiment):
                 self._update_torque(old_theta, torque_index)
 
         results = np.array(results).squeeze()
-        # Calculate fourier series first 1000 terms.
-        ind_mag_phi = fourier.get_fourier_series(1000, self.w_d, self.dt,
+        # Calculate fourier series first 50 terms.
+        ind_mag_phi = fourier.get_fourier_series(50, self.w_d, self.dt,
                                                  self.g_0)
         # fourier theoretical results.
         torque_fourier = h.baker(t.calculate_sine_pi,
@@ -937,11 +943,10 @@ class FixedStepIntegratorError(Experiment):
             results[:, 0], self.t0, self.y0, self.b - self.b_prime,
             self.k - self.k_prime, self.i, torque_fourier)
         ss_bit_theory = theory_fourier[:, 1][np.where(
-            theory_fourier[:, 0] > self.t_fin - 2)]
+            theory_fourier[:, 0] > self.t_fin.squeeze() - 2)]
         # Find maximum error over amplitude.
         iterator_diffs = np.max(np.abs(m.calc_norm_errs(
-            [results[:, 1], theory_fourier[:, 1]],
-            [results[:, 2], theory_fourier[:, 2]])[1]) / np.max(ss_bit_theory))
+            [results[:, 1], theory_fourier[:, 1]])[1]) / np.max(ss_bit_theory))
         exp_results = pd.DataFrame(
             np.array([self.b, self.k, self.t_fin, self.period_divider,
                       [iterator_diffs]]).T,
@@ -989,3 +994,32 @@ class ReadAllData(Experiment):
         
     def run(self, tags=False, savedata=False, plot=True):
         super(ReadAllData, self).run(tags=tags, savedata=savedata, plot=plot)
+
+
+if __name__ == '__main__':
+    #configs = h.yaml_read('../configs/TheoryVsFourier.yaml')
+    #b_range = [2.e-6, 5.e-6, 1.e-8, 2.e-8, 3.e-8, 5.e-8, 8.e-8, 5.e-10]
+    #k_range = [1.e-5, 2.e-5, 3.e-5, 5.e-5, 8.e-5, 1.e-4, 2.e-4, 3.e-4, 5.e-4,
+    #           8.e-4, 1.e-3, 2.e-3]
+    #num_terms = [10, 50, 100, 200]
+    #for b in b_range:
+    #    for k in k_range:
+    #        for num_term in num_terms:
+    #            configs['b'] = np.array([b])
+    #            configs['k'] = np.array([k])
+    #            configs['num_terms'] = np.array([num_term])
+    #            try:
+    #                w_res = t.w_res_gamma(b, k, 1e-7)[0]
+    #                if w_res < 10:
+    #                    pass
+    #                else:
+    #                    errs = TheoryVsFourier(config=configs)
+    #                    results = errs.run(savedata=False)
+    #                    with open('TheoryVsFourierErrors_dt120.txt',
+    # 'ab') as f:
+    #                        np.savetxt(f, results, delimiter=',',
+    #                                   newline='\r\n')
+    #            except ValueError:
+    #                pass
+    delay_in_thetadot = FixedStepIntegrator()
+    delay_in_thetadot.run()

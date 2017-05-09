@@ -1,14 +1,17 @@
 """Front-end file to call different experiments from. Separate from others so 
 only this file needs to be changed when different experiments are run."""
 
-import matplotlib
-matplotlib.use('Agg')
+import sys
+
+#import matplotlib
+#matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+
 import experiments as exp
 import helpers as h
-import theory as t
-import numpy as np
 import measurement as m
-import sys
+import theory as t
 
 
 def main(make_then_read=True):
@@ -78,34 +81,44 @@ def main(make_then_read=True):
 
         # Find the maximum normalised error for no NR
         configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
-        k_range = np.array([1e-5, 2e-5, 3e-5, 5e-5, 8e-5, 1e-4, 2e-4, 3e-4,
-                            5e-4, 8e-4, 1e-3, 2e-3])
-        b_range = np.array([1e-6, 2e-6, 5e-6, 1e-8, 2e-8, 3e-8, 5e-8, 8e-8,
-                            5e-10])
+        k_range = np.array([1e-4])#, 2e-5, 3e-5, 5e-5, 8e-5, 1e-4, 2e-4, 3e-4,
+                            #5e-4, 8e-4, 1e-3, 2e-3])
+        b_range = np.array([2e-6])#, 5e-6,
+                            #1e-8, 2e-8, 3e-8, 5e-8, 8e-8, 5e-10])
         i = configs['i']
-        for divider in [50., 120., 500.]:
+        # for divider in [50., 120., 500.]:
+        divider = 120.
+        for dt in [10., 20., 50., 100., 200.]:
             for b in b_range:
                 for k in k_range:
                     configs['k'] = np.array([k])
                     configs['b'] = np.array([b])
                     configs['sampling_divider'] = np.array([divider])
-                    w_res, gamma = t.w_res_gamma(b, k, i)
-                    configs['w_d'] = w_res
-                    configs['tfin'] = np.array([10.]) if 10. > 4. / gamma else \
-                        np.array([4 / gamma])
-                    print(w_res, gamma)
-                    print('k b divider', k, b, divider)
+                    configs['max_step_divider'] = np.array([dt])
+                    try:
+                        w_res, gamma = t.w_res_gamma(b, k, i)
+                        if w_res < 10:
+                            raise ValueError
+                        configs['w_d'] = w_res
+                        configs['tfin'] = np.array(
+                            [10.]) if 10. > 4. / gamma else \
+                            np.array([4 / gamma])
+                        print(w_res, gamma)
+                        print('k b divider', k, b, divider)
 
-                    rk_test = exp.FixedStepIntegratorError(config=configs,
-                                                           norm_struct=False)
-                    results = np.array(rk_test.run(plot=False, savedata=False)[
-                                           'all-mmts'].values)
-                    print(results)
-                    with open('nonNRtests.txt', 'ab') as f:
-                        np.savetxt(f, results, delimiter=',', newline='\r\n')
-
-    # theory_vs_fourier = TheoryVsFourier()
-    # theory_vs_fourier.run()
+                        rk_test = exp.FixedStepIntegratorError(
+                            config=configs, norm_struct=False)
+                        results = np.array(
+                            rk_test.run(plot=False, savedata=False)[
+                                'all-mmts'].values)
+                        print(results)
+                        with open('nonNRtests-dt-internal.txt', 'ab') as f:
+                            np.savetxt(f, results, delimiter=',',
+                                       newline='\r\n')
+                    except ValueError:
+                        pass
+                        # Ignore values where there is no resonant frequency
+                        # due to overdamping, or if they are too small.
 
     # TODO note down the config for the Python experiment, including the type of
     # TODO integrator used and the behaviour of speed for high frequencies - the
@@ -114,5 +127,81 @@ def main(make_then_read=True):
     # so large.
 
 
+def nr_test():
+    # Find the maximum normalised error for no NR
+    configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
+    keff_range = np.array([1e-5, 1e-3])
+    beff_range = np.array([2e-7, 5e-9])
+    i = configs['i']
+    for divider in [50., 120., 200.]:
+        for beff in beff_range:
+            for keff in keff_range:
+                kpr_range = np.linspace(-5. * keff / 10., 1.5 * keff, 4)
+                bpr_range = np.linspace(-5. * beff / 10., 1.5 * beff, 4)
+                for kpr in kpr_range:
+                    for bpr in bpr_range:
+                        configs['k\''] = np.array([kpr])
+                        configs['k'] = np.array([keff + kpr])
+                        configs['b\''] = np.array([bpr])
+                        configs['b'] = np.array([beff + bpr])
+                        configs['sampling_divider'] = np.array([divider])
+                        delay = configs['delay']
+                        try:
+                            w_res, gamma = t.w_res_gamma(beff, keff, i)
+                            if w_res < 9:
+                                raise ValueError
+                            configs['w_d'] = w_res
+                            configs['tfin'] = np.array(
+                                [10.]) if 10. > 4. / gamma else \
+                                np.array([4 / gamma])
+                            print(w_res, gamma)
+                            print('keff k\' beff b\' divider', keff, kpr, beff,
+                                  bpr, divider)
+
+                            rk_test = exp.FixedStepIntegrator(
+                                config=configs, norm_struct=False)
+                            results = rk_test.run(
+                                plot=False, savedata=False)['all-mmts']
+                            plt.plot(results['t'], results['theta'])
+                            plt.show()
+                            answer = ''
+                            while answer != 'y' and answer != 'n':
+                                answer = input('Does this converge? y/n')
+                            if answer == 'y':
+                                print('Performing measurements')
+                                mmts = m.one_mmt_set(
+                                    results['t'], results['theta'],
+                                    results['sine-torque'], configs['b'],
+                                    configs['b\''], configs['k'],
+                                    configs['k\''], configs['i'])
+                                transfer = t.theory_response(
+                                    configs['b'], configs['k'], configs['i'],
+                                    configs['b\''], configs['k\''], w_res)
+                                mmts[0, :] = mmts[0, :] * 2 * np.pi
+                                mmts[1, :] = mmts[1, :] / np.abs(
+                                    transfer) * 10 ** 7  # NOTE this is
+                                #  because g0mag is 10^-7
+                                mmts[2, :] = np.abs(
+                                    mmts[2, :] / np.angle(transfer))
+                                print(mmts)
+                                with open('NR-no-delay.txt'.format(
+                                        divider, kpr, keff, bpr, beff, delay),
+                                        'a') as f:
+                                    write_string = '{} {} {} {} {} {} {} {} {}'\
+                                                   ' {} {} {} {}'.format(
+                                        divider, kpr, keff, bpr, beff, delay,
+                                        mmts[0, 0], mmts[0, 1], mmts[1, 0],
+                                        mmts[1, 1], mmts[2, 0], mmts[2, 1],
+                                        answer)
+                                    f.write(write_string + '\r\n')
+                            else:
+                                pass
+                        except ValueError:
+                            pass
+                            # Ignore values where there is no resonant frequency
+                            # due to overdamping, or if they are too small.
+
+
 if __name__ == '__main__':
-    main(make_then_read=False)
+    # main(make_then_read=False)
+    nr_test()

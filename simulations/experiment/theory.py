@@ -128,6 +128,8 @@ def w_damped_gamma(b, k, i):
 
 
 def w_res_gamma(b, k, i):
+    if k / i - b ** 2 / (2 * i ** 2) < 0:
+        raise ValueError
     w_res = np.sqrt(k / i - b ** 2 / (2 * i ** 2))
     gamma = b / i
     return w_res, gamma

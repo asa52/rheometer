@@ -113,8 +113,8 @@ def two_by_n_plotter(datasets, start, params_dict, savepath=None, show=False,
                 else:
                     f.write('{}: {}\r\n'.format(key, params_dict[key]))
     if show:
-        fig_manager = plt.get_current_fig_manager()
-        fig_manager.window.showMaximized()
+        # fig_manager = plt.get_current_fig_manager()
+        # fig_manager.window.showMaximized()
         plt.show()
     plt.close(fig)
     return
