@@ -27,6 +27,7 @@ def f_full_torque(t, y, i, b, k, g):
 
 def ode_integrator(y0, t0, i, b_prime, k_prime, b, k, g_0_mags, w_ds, phases,
                    t_fin, dt, torque_func):
+    """Test function for ODE integration."""
     r = ode(f_analytic).set_integrator('vode')
     baked_g_0 = h.baker(torque_func, args=['', w_ds, g_0_mags, phases])
     r.set_initial_value(y0, t0).set_f_params(i, baked_g_0, b, b_prime, k,
@@ -45,7 +46,6 @@ def analytic_torque(t, omega_ds, amplitudes, phases):
     :param omega_ds: Angular frequency of the sinusoid.
     :param amplitudes: Amplitude of sinusoid.
     :param phases: Phase of sinusoid in radians."""
-
     amplitudes, omega_ds, phases = h.check_types_lengths(amplitudes, omega_ds,
                                                          phases)
     torque = 0
@@ -55,7 +55,8 @@ def analytic_torque(t, omega_ds, amplitudes, phases):
 
 
 def rk4(f):
-    """Source: https://rosettacode.org/wiki/Runge-Kutta_method#Python"""
+    """Source: https://rosettacode.org/wiki/Runge-Kutta_method#Python. Runge 
+    Kutta 4th order code."""
     return lambda t, y, dt: (
         lambda dy1: (
             lambda dy2: (

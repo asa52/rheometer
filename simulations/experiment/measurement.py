@@ -3,7 +3,7 @@ being processed."""
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pyfftw
+# import pyfftw
 import scipy.fftpack as f
 import scipy.signal as sg
 
@@ -20,11 +20,12 @@ def calc_fft(x_axis, y_axis):
     except ZeroDivisionError:
         print(x_axis[1] - x_axis[0])
     # calculate FFT using FFTW module. Then, shift and normalise.
-    fft = pyfftw.builders.fft(y_axis, overwrite_input=False,
-                              planner_effort='FFTW_ESTIMATE', threads=2,
-                              auto_align_input=False, auto_contiguous=False,
-                              avoid_copy=True)
-    full_fft_y = np.fft.fftshift(2 * fft() / n)
+    #fft = pyfftw.builders.fft(y_axis, overwrite_input=False,
+    #                          planner_effort='FFTW_ESTIMATE', threads=2,
+    #                          auto_align_input=False, auto_contiguous=False,
+    #                          avoid_copy=True)
+    fft = np.fft.fft(y_axis)
+    full_fft_y = np.fft.fftshift(2 * fft / n)
     return freqs, full_fft_y
 
 
@@ -185,11 +186,6 @@ def calc_phase(real_resp, real_torque):
     so filter first if necessary.
     :param real_resp: The displacement, as an array.
     :param real_torque: The analytic torque, as an array."""
-    #unnormalised = np.correlate(real_resp, real_torque)
-    #normalised = unnormalised / np.sqrt(np.correlate(real_resp, real_resp) *
-    #                                    np.correlate(real_torque, real_torque))
-    #phases = -np.arccos(normalised), 0
-
     # Make sure y and torque are complex and not absolute-valued.
     hil_y = f.hilbert(real_resp)
     hil_torque = f.hilbert(real_torque)

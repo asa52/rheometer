@@ -81,20 +81,16 @@ def main(make_then_read=True):
 
         # Find the maximum normalised error for no NR
         configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
-        k_range = np.array([1e-4])#, 2e-5, 3e-5, 5e-5, 8e-5, 1e-4, 2e-4, 3e-4,
-                            #5e-4, 8e-4, 1e-3, 2e-3])
+        k_range = np.array([5e-4, 8e-4, 1e-3, 2e-3])
         b_range = np.array([2e-6])#, 5e-6,
                             #1e-8, 2e-8, 3e-8, 5e-8, 8e-8, 5e-10])
         i = configs['i']
-        # for divider in [50., 120., 500.]:
-        divider = 120.
-        for dt in [10., 20., 50., 100., 200.]:
+        for divider in [500.]:
             for b in b_range:
                 for k in k_range:
                     configs['k'] = np.array([k])
                     configs['b'] = np.array([b])
                     configs['sampling_divider'] = np.array([divider])
-                    configs['max_step_divider'] = np.array([dt])
                     try:
                         w_res, gamma = t.w_res_gamma(b, k, i)
                         if w_res < 10:
@@ -112,7 +108,7 @@ def main(make_then_read=True):
                             rk_test.run(plot=False, savedata=False)[
                                 'all-mmts'].values)
                         print(results)
-                        with open('nonNRtests-dt-internal.txt', 'ab') as f:
+                        with open('nonNRtests-120-500.txt', 'ab') as f:
                             np.savetxt(f, results, delimiter=',',
                                        newline='\r\n')
                     except ValueError:
@@ -130,13 +126,16 @@ def main(make_then_read=True):
 def nr_test():
     # Find the maximum normalised error for no NR
     configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
-    keff_range = np.array([1e-5, 1e-3])
-    beff_range = np.array([2e-7, 5e-9])
+    keff_range = np.array([1e-5])   #, 1e-3])
+    beff_range = np.array([#2e-7,
+                            5e-9])
     i = configs['i']
-    for divider in [50., 120., 200.]:
+    for divider in [50.
+                    #, 120., 200.
+                    ]:
         for beff in beff_range:
             for keff in keff_range:
-                kpr_range = np.linspace(-5. * keff / 10., 1.5 * keff, 4)
+                kpr_range = np.linspace(-5. * keff / 10., 1.5 * keff, 2)
                 bpr_range = np.linspace(-5. * beff / 10., 1.5 * beff, 4)
                 for kpr in kpr_range:
                     for bpr in bpr_range:
@@ -205,3 +204,5 @@ def nr_test():
 if __name__ == '__main__':
     # main(make_then_read=False)
     nr_test()
+    #read_saved = exp.ReadAllData()
+    #read_saved.run()

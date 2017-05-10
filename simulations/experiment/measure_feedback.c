@@ -272,16 +272,12 @@ int main(int theta) {
   // REG_TC0_RA0 = 30000000; // PWM value
   // REG_TC0_CCR0 = 0b101;  // start counter
 
-  pos = theta; 
-  // todo simulate by replacing function with something that gets the theta
-  // value from the Python program (perhaps with some delay) and mapping to
-  // a value between 0 and 2095? 
+  pos = theta;
   
   if ((pos >= 1558 && pos <= 3633)) {
     // TODO Why this limit on the pos value?
     int num = (pos - pos_0);  // Convert to index from which the voltage from
-                              // A0 can be converted into TODO 'distance
-                              // values'
+                              // A0 can be converted into 'distance values'
     mu = A0mu[num];           // 0.1 microns is the unit here
   }
   //printf("pos: %i mu: %i\n", pos, mu);

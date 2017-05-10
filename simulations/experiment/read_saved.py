@@ -53,10 +53,6 @@ def prepare_to_plot(grouped_mmts, theory_resp, savepath=None, show=True):
         simulated_amps = to_plot[:, 0, 1, :][sort_args].squeeze()
         simulated_phase = to_plot[:, 0, 2, :][sort_args].squeeze()
 
-        #measured_freqs = to_plot[:, 1, 0, :]
-        #measured_amps = to_plot[:, 1, 1, :]
-        #measured_phase = to_plot[:, 1, 2, :]
-
         mmts[0][0].append([simulated_ang_freqs, simulated_amps,
                           r"k={:.1e}, k'={:.1e}, b={:.1e}, b'={:.1e}".format(
                               parameter_set[2][0], parameter_set[3][0],
@@ -211,8 +207,7 @@ def match_torques(grouped_sets, plot_real=False, savepath=None):
             # Times have now been matched and we are ready to obtain frequency,
             # amplitude and phase values from the output data.
             # Do once for simulated values and compare to measured values.
-            measure_for = [[output[:, 1], output[:, 2]]]#, only plot actual ones
-                           #[output[:, 4], output[:, 5]]]
+            measure_for = [[output[:, 1], output[:, 2]]]
             mmts = []
             for measure in measure_for:
                 # Normalise the theta by the analytic torque amplitude to get
