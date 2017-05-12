@@ -126,17 +126,15 @@ def main(make_then_read=True):
 def nr_test():
     # Find the maximum normalised error for no NR
     configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
-    keff_range = np.array([1e-5])   #, 1e-3])
-    beff_range = np.array([#2e-7,
-                            5e-9])
+    keff_range = np.array([1e-5, 5e-5, 1e-4, 5e-4, 1e-3])
+    beff_range = np.flipud(np.linspace(5e-9, 5e-7, 50))
     i = configs['i']
-    for divider in [50.
-                    #, 120., 200.
-                    ]:
+    for divider in [50., 120.]:
         for beff in beff_range:
             for keff in keff_range:
-                kpr_range = np.linspace(-5. * keff / 10., 1.5 * keff, 2)
-                bpr_range = np.linspace(-5. * beff / 10., 1.5 * beff, 4)
+                kpr_range = np.array([-0.5 * keff])
+                bpr_range = np.array([0.])   #np.linspace(-5. * beff / 10.,
+                                            #            1.5 * beff, 4)
                 for kpr in kpr_range:
                     for bpr in bpr_range:
                         configs['k\''] = np.array([kpr])
@@ -151,7 +149,7 @@ def nr_test():
                                 raise ValueError
                             configs['w_d'] = w_res
                             configs['tfin'] = np.array(
-                                [10.]) if 10. > 4. / gamma else \
+                                [20.]) if 20. > 4. / gamma else \
                                 np.array([4 / gamma])
                             print(w_res, gamma)
                             print('keff k\' beff b\' divider', keff, kpr, beff,
@@ -161,40 +159,34 @@ def nr_test():
                                 config=configs, norm_struct=False)
                             results = rk_test.run(
                                 plot=False, savedata=False)['all-mmts']
-                            plt.plot(results['t'], results['theta'])
-                            plt.show()
-                            answer = ''
-                            while answer != 'y' and answer != 'n':
-                                answer = input('Does this converge? y/n')
-                            if answer == 'y':
-                                print('Performing measurements')
-                                mmts = m.one_mmt_set(
-                                    results['t'], results['theta'],
-                                    results['sine-torque'], configs['b'],
-                                    configs['b\''], configs['k'],
-                                    configs['k\''], configs['i'])
-                                transfer = t.theory_response(
-                                    configs['b'], configs['k'], configs['i'],
-                                    configs['b\''], configs['k\''], w_res)
-                                mmts[0, :] = mmts[0, :] * 2 * np.pi
-                                mmts[1, :] = mmts[1, :] / np.abs(
-                                    transfer) * 10 ** 7  # NOTE this is
-                                #  because g0mag is 10^-7
-                                mmts[2, :] = np.abs(
-                                    mmts[2, :] / np.angle(transfer))
-                                print(mmts)
-                                with open('NR-no-delay.txt'.format(
-                                        divider, kpr, keff, bpr, beff, delay),
-                                        'a') as f:
-                                    write_string = '{} {} {} {} {} {} {} {} {}'\
-                                                   ' {} {} {} {}'.format(
-                                        divider, kpr, keff, bpr, beff, delay,
-                                        mmts[0, 0], mmts[0, 1], mmts[1, 0],
-                                        mmts[1, 1], mmts[2, 0], mmts[2, 1],
-                                        answer)
-                                    f.write(write_string + '\r\n')
-                            else:
-                                pass
+                            #plt.plot(results['t'], results['theta'])
+                            #plt.show()
+                            #answer = ''
+                            #while answer != 'y' and answer != 'n':
+                            #    answer = input('Does this converge? y/n')
+                            #if answer == 'y':
+                            #    print('Performing measurements')
+                            mmts = m.one_mmt_set(
+                                results['t'], results['theta'],
+                                results['sine-torque'], configs['b'],
+                                configs['b\''], configs['k'],
+                                configs['k\''], configs['i'])
+                            transfer = t.theory_response(
+                                configs['b'], configs['k'], configs['i'],
+                                configs['b\''], configs['k\''], w_res)
+                            mmts[0, :] = mmts[0, :] * 2 * np.pi
+                            mmts[1, :] = mmts[1, :] / np.abs(transfer) * 10 ** 7
+                            # NOTE this is because g0mag is 10^-7
+                            mmts[2, :] = np.abs(mmts[2, :] / np.angle(transfer))
+                            print(mmts)
+                            with open('NR-no-delay-var-b-k.txt', 'a') as f:
+                                write_string = '{} {} {} {} {} {} {} {} {} {}' \
+                                               ' {} {}'.format(
+                                    divider, kpr, keff, bpr, beff, delay,
+                                    mmts[0, 0], mmts[0, 1], mmts[1, 0],
+                                    mmts[1, 1], mmts[2, 0], mmts[2, 1])#,
+                                    #answer)
+                                f.write(write_string + '\r\n')
                         except ValueError:
                             pass
                             # Ignore values where there is no resonant frequency

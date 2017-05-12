@@ -251,3 +251,10 @@ def order_of_mag(n):
     sgn = np.sign(n)
     mag = 10 ** np.round(np.log10(np.abs(n)) - np.log10(5.5) + 0.5)
     return sgn * mag
+
+
+def round_partial(value, resolution):
+    """Round value to an arbitrary resolution."""
+    if resolution == 0:
+        return 0
+    return round(value / resolution) * resolution

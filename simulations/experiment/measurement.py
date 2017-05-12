@@ -189,7 +189,7 @@ def calc_phase(real_resp, real_torque):
     # Make sure y and torque are complex and not absolute-valued.
     hil_y = f.hilbert(real_resp)
     hil_torque = f.hilbert(real_torque)
-
+    print(np.array([hil_y, hil_torque]))
     phases = -np.angle(hil_y / hil_torque)  # also calculate average and error.
     return h.combine_quantities(phases, operation='mean')
 

@@ -179,7 +179,7 @@ class MeasuringAccuracy(Experiment):
             # Will only reach steady state if this is the case, otherwise no
             # point making a response curve. Measure one point. b - b' = 0
             # has two steady state frequencies, the transient and PI.
-            ss_times = m.identify_ss(times, theory[:, 1],
+            ss_times = m.identify_ss(theory[:, 0], theory[:, 1],
                                      n_per_segment=time_index)
 
             if ss_times is not False:
@@ -331,7 +331,7 @@ class TheoryVsFourier(Experiment):
     def _one_run(self, theta_0, omega_0, t0, i, b_prime, k_prime, b, k,
                  g_0_mag, w_d, phase, t_fin, dt, num_terms, create_plot=False):
         """Compare experiment to theory for one set of parameters and return the 
-        difference between the two. Uses only the analytic torque expression."""
+        difference between the two. Uses only Fourier torque expression."""
         y0 = np.array([theta_0, omega_0]).squeeze()
         times = np.arange(t0, t_fin, dt / self.divider)
         try:
@@ -353,10 +353,14 @@ class TheoryVsFourier(Experiment):
         #plt.xlabel('t/s', fontweight='bold', fontsize=13)
         #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
         #plt.show()
+        # Calculate phase shift caused by offset of digitised compared to
+        # analogue sine.
+        #phase += dt * w_d / 2
 
         # Calculate theoretical results.
         torque_sine = h.baker(t.calculate_sine_pi,
-                              ["", "", "", "", g_0_mag, w_d, phase],
+                              ["", "", "", "", g_0_mag, w_d, phase - dt * w_d
+                               / 2],
                               pos_to_pass_through=(0, 3))
         theory = t.calc_theory_soln(times, t0, y0, b - b_prime, k - k_prime, i, 
                                     torque_sine)
@@ -654,11 +658,18 @@ class FixedStepIntegrator(Experiment):
 
     def _update_torque(self, theta_w_delay, i):
         """Get the updated torque given the angular displacement in radians."""
+        digit_resolution = self.g_0 / 2047  # 2^(bit_res/2) -1
         self.theta_sim = theta_w_delay
         last_theta_sim = self.torques[-1, 2]
         self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
-        self.total_torque = self.torque_sine[i] + \
-            self.k_prime * self.theta_sim + self.b_prime * self.omega_sim
+        torque_calc = h.round_partial(self.torque_sine[i], digit_resolution) + \
+            h.round_partial(self.k_prime * self.theta_sim, digit_resolution) + \
+            h.round_partial(self.b_prime * self.omega_sim, digit_resolution)
+        if torque_calc > self.g_0:
+            torque_calc = self.g_0
+        elif torque_calc < -self.g_0:
+            torque_calc = -self.g_0
+        self.total_torque = torque_calc
 
     def _get_recent_torque(self, current_time):
         """Return the last calculated torque."""
@@ -997,29 +1008,30 @@ class ReadAllData(Experiment):
 
 
 if __name__ == '__main__':
-    #configs = h.yaml_read('../configs/TheoryVsFourier.yaml')
-    #b_range = [2.e-6, 5.e-6, 1.e-8, 2.e-8, 3.e-8, 5.e-8, 8.e-8, 5.e-10]
-    #k_range = [1.e-5, 2.e-5, 3.e-5, 5.e-5, 8.e-5, 1.e-4, 2.e-4, 3.e-4, 5.e-4,
-    #           8.e-4, 1.e-3, 2.e-3]
-    #num_terms = [10, 50, 100, 200]
-    #for b in b_range:
-    #    for k in k_range:
-    #        for num_term in num_terms:
-    #            configs['b'] = np.array([b])
-    #            configs['k'] = np.array([k])
-    #            configs['num_terms'] = np.array([num_term])
-    #            try:
-    #                w_res = t.w_res_gamma(b, k, 1e-7)[0]
-    #                if w_res < 10:
-    #                    pass
-    #                else:
-    #                    errs = TheoryVsFourier(config=configs)
-    #                    results = errs.run(savedata=False)
-    #                    with open('TheoryVsFourierErrors_dt120.txt',
-    # 'ab') as f:
-    #                        np.savetxt(f, results, delimiter=',',
-    #                                   newline='\r\n')
-    #            except ValueError:
-    #                pass
-    delay_in_thetadot = FixedStepIntegrator()
-    delay_in_thetadot.run()
+    configs = h.yaml_read('../configs/TheoryVsFourier.yaml')
+    b_range = [2.e-6, 5.e-6, 1.e-8, 2.e-8, 3.e-8, 5.e-8, 8.e-8, 5.e-10]
+    k_range = [1.e-5, 2.e-5, 3.e-5, 5.e-5, 8.e-5, 1.e-4, 2.e-4, 3.e-4, 5.e-4,
+               8.e-4, 1.e-3, 2.e-3]
+    num_terms = [10, 50, 100, 200]
+    for b in b_range:
+        for k in k_range:
+            for num_term in num_terms:
+                configs['b'] = np.array([b])
+                configs['k'] = np.array([k])
+                configs['num_terms'] = np.array([num_term])
+                try:
+                    w_res = t.w_res_gamma(b, k, 1e-7)[0]
+                    if w_res < 10:
+                        pass
+                    else:
+                        errs = TheoryVsFourier(config=configs)
+                        results = errs.run(savedata=False)
+                        with open('TheoryVsFourierErrors_dt120.txt', 'ab') as f:
+                            np.savetxt(f, results, delimiter=',',
+                                       newline='\r\n')
+                except ValueError:
+                    pass
+    #delay_in_thetadot = FixedStepIntegrator()
+    #delay_in_thetadot.run()
+    #measure_acc = MeasuringAccuracy()
+    #measure_acc.run(savedata=True, plot=True)
