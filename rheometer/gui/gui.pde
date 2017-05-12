@@ -1,9 +1,6 @@
 import java.util.Arrays;
 import processing.serial.*;
 
-// what are the gui plots? how do they update?
-// how do the gui and arduino talk to each other?
-
 String portName;
 Serial serialPort;
 int speed = 115200;

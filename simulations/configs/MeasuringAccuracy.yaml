@@ -8,38 +8,18 @@ tfin: 100
 dt: 0.005
 
 # Constant parameters at a time.
-i_s:  [1.e-7] #, .0000001, .000001]
-b_s:  [1.e-7] #, .000000005, .00000001, .00000005, .0000001]
-k_s:  [4.5e-6] #, .000001, .000005]
-b's:  [0.]    #, .000000005, .00000001, .00000005, .0000001]
-k's:  [0.]    #, .000001, .000005]
+i_s:  1.e-7  #, .0000001, .000001]
+b_s:  1.e-7  #, .000000005, .00000001, .00000005, .0000001]
+k_s:  4.5e-6 #, .000001, .000005]
+b's:  0.     #, .000000005, .00000001, .00000005, .0000001]
+k's:  0.     #, .000001, .000005]
 
 # torque parameters - one at a time.
-g0s: [.0000001] #, .0000005, .000001]
-phis:   [0]
+g0s:    .0000001 #, .0000005, .000001]
+phis:   0
 
 # All values fed into one experiment. Values in radians. Range from 0-20Hz
 # roughly.
 w_d_start:   1.
 w_d_step:    5.
 w_d_final: 145.
-
-# Test how noise level and frequency affects the measuring functions'
-# accuracy and error. Perhaps modifying these apparatus by adding filtering.
-# Used The Art of Electronics to test against different types of noise. We
-# are testing here that the introduction of noise to a perfect signal does
-# not significantly shift the measured functions' output - it should increase
-# their error, but nothing more. Any systematic shifts in the amplitude,
-# phase, and frequency measurements suggest that it is the measurement of the
-# signal, rather than the signal (eventually from the ODE integrator) itself
-# that is being affected. So for example, for 50Hz noise, for the amplitude
-# measurement we may get 4 peaks - 2 due to the main signals, which are split
-# into two more due to an overlap 50Hz sine. The true amplitude is in this
-# case the midpoint of the 50Hz signal, so filtering this out would improve
-# the accuracy of that measurement. Filtering is NOT applied to signals being
-# fed back into the ODE integrator (it does not make sense to FFT some very
-# noise signals).
-noise_type: 'rand_uniform'  # Valid types: rand_uniform, rand_gaussian, 1/f,
-                            # burst, band-limited, single-freq.
-noise_amp_ratio_to_torque: 0.001
-noise_param_2: 0.

@@ -24,6 +24,7 @@ class CodeTimer:
         return
 
     def start_timer(self):
+        """Start the timer."""
         self.start = time.time()
         print("Timer {} started.".format(self.name))
 
@@ -48,6 +49,7 @@ class CodeTimer:
         return checkpoints
 
     def get_elapsed(self):
+        """Get the currently elapsed time."""
         return time.time() - self.start
 
 
@@ -76,6 +78,8 @@ def convert_to_array(variable):
 
 
 def check_types_lengths(*variables, check_lengths=True):
+    """Convert all variables to arrays and possibly check if they are of equal 
+    length."""
     converted_vars = []
     for i in range(len(variables)):
         converted = convert_to_array(variables[i])
@@ -257,4 +261,4 @@ def round_partial(value, resolution):
     """Round value to an arbitrary resolution."""
     if resolution == 0:
         return 0
-    return round(value / resolution) * resolution
+    return np.round(value / resolution) * resolution

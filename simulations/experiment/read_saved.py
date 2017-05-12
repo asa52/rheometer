@@ -265,28 +265,3 @@ def _get_config(path, filename_root):
         # NOTE this will split the string into individual keys as long as the
         # numpy arrays only have 1 element each!
     return config_dict
-
-
-if __name__ == '__main__':
-    # same beff, varying keff
-    files = [r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
-             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
-             r'/FixedStepIntegrator-2017-05-03-10-39-27-all-mmts.csv',
-             r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
-             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
-             r'/FixedStepIntegrator-2017-05-03-11-09-13-all-mmts.csv',
-             r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
-             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
-             r'/FixedStepIntegrator-2017-05-03-10-12-01-all-mmts.csv']
-
-    # same keff, varying beff
-    #files = [r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
-    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
-    #         r'/FixedStepIntegrator-2017-05-03-10-39-27-all-mmts.csv',
-    #         r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
-    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
-    #         r'/FixedStepIntegrator-2017-05-03-10-48-26-all-mmts.csv',
-    #         r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
-    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
-    #         r'/FixedStepIntegrator-2017-05-03-10-30-42-all-mmts.csv']
-    read_plot(files)

@@ -4,7 +4,7 @@ theta_0: 0.
 omega_0: 0.
 
 # Time interval
-tfin:    20.
+tfin:    10.
 
 # Constant parameters at a time.
 i:  1.e-7    #, .0000001, .000001]

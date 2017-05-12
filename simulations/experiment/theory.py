@@ -122,12 +122,14 @@ def theory_response(b, k, i, b_prime, k_prime, w_d):
 
 
 def w_damped_gamma(b, k, i):
+    """Damped frequency and damping."""
     w2 = b ** 2 / (4 * i ** 2) - k / i
     gamma = b / i
     return w2, gamma
 
 
 def w_res_gamma(b, k, i):
+    """Amplitude resonant frequency."""
     if k / i - b ** 2 / (2 * i ** 2) < 0:
         raise ValueError
     w_res = np.sqrt(k / i - b ** 2 / (2 * i ** 2))

@@ -275,12 +275,11 @@ int main(int theta) {
   pos = theta;
   
   if ((pos >= 1558 && pos <= 3633)) {
-    // TODO Why this limit on the pos value?
     int num = (pos - pos_0);  // Convert to index from which the voltage from
                               // A0 can be converted into 'distance values'
     mu = A0mu[num];           // 0.1 microns is the unit here
   }
-  //printf("pos: %i mu: %i\n", pos, mu);
+
   if (centre_mode == 1) {
     used_zero_A0 = equilibrium_A0;  // set zero point to some value you set
   } else {
@@ -310,7 +309,7 @@ int main(int theta) {
   return func;
 }
 
-void handle_const_strain_feedback() {
+void handle_const_strain_feedback(){
   // Checks the pos has the correct form.
 
   if ((pos <= 1558 || pos >= 3633) && amp >= 1) {

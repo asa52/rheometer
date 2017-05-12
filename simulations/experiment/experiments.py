@@ -914,7 +914,6 @@ class FixedStepIntegratorError(Experiment):
         plots."""
         torque_index = 0
         self._update_torque(self.y0[0], torque_index)
-
         f_baked = h.baker(c.f_full_torque,
                           ["", "", self.i, self.b, self.k,
                            self._get_recent_torque], pos_to_pass_through=(0, 1))
@@ -1000,38 +999,10 @@ class ReadAllData(Experiment):
         fft_data = r.match_torques(sorted_by_params, plot_real=self.prms[
             'plot_real'][0], savepath=directory + 'plots/')
         print(fft_data)
+        with open('sweep-wd-const-delay-2.txt', 'ab') as f:
+            f.write(fft_data)
         if plot:
             r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
         
     def run(self, tags=False, savedata=False, plot=True):
         super(ReadAllData, self).run(tags=tags, savedata=savedata, plot=plot)
-
-
-if __name__ == '__main__':
-    configs = h.yaml_read('../configs/TheoryVsFourier.yaml')
-    b_range = [2.e-6, 5.e-6, 1.e-8, 2.e-8, 3.e-8, 5.e-8, 8.e-8, 5.e-10]
-    k_range = [1.e-5, 2.e-5, 3.e-5, 5.e-5, 8.e-5, 1.e-4, 2.e-4, 3.e-4, 5.e-4,
-               8.e-4, 1.e-3, 2.e-3]
-    num_terms = [10, 50, 100, 200]
-    for b in b_range:
-        for k in k_range:
-            for num_term in num_terms:
-                configs['b'] = np.array([b])
-                configs['k'] = np.array([k])
-                configs['num_terms'] = np.array([num_term])
-                try:
-                    w_res = t.w_res_gamma(b, k, 1e-7)[0]
-                    if w_res < 10:
-                        pass
-                    else:
-                        errs = TheoryVsFourier(config=configs)
-                        results = errs.run(savedata=False)
-                        with open('TheoryVsFourierErrors_dt120.txt', 'ab') as f:
-                            np.savetxt(f, results, delimiter=',',
-                                       newline='\r\n')
-                except ValueError:
-                    pass
-    #delay_in_thetadot = FixedStepIntegrator()
-    #delay_in_thetadot.run()
-    #measure_acc = MeasuringAccuracy()
-    #measure_acc.run(savedata=True, plot=True)

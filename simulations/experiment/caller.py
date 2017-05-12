@@ -1,11 +1,9 @@
 """Front-end file to call different experiments from. Separate from others so 
-only this file needs to be changed when different experiments are run."""
+only this file needs to be changed when different experiments are run. Main 
+location for scripting different tests."""
 
 import sys
 
-#import matplotlib
-#matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 
 import experiments as exp
@@ -38,7 +36,7 @@ def main(make_then_read=True):
         configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
         i = configs['i']
         configs['k'] = np.array([k_eff])
-        configs['k\''] = np.array([0.])     # todo remove these
+        configs['k\''] = np.array([0.])
         configs['b\''] = np.array([b_pr])
         configs['b'] = np.array([b_eff - b_pr])
         configs['sampling_divider'] = np.array([dt_fraction])
@@ -116,18 +114,12 @@ def main(make_then_read=True):
                         # Ignore values where there is no resonant frequency
                         # due to overdamping, or if they are too small.
 
-    # TODO note down the config for the Python experiment, including the type of
-    # TODO integrator used and the behaviour of speed for high frequencies - the
-    # frequency does not match the actual frequency (slightly lower - check).
-    # Largely speaking this does not matter, but does explain why the errors are
-    # so large.
-
 
 def nr_test():
     # Find the maximum normalised error for no NR
     configs = h.yaml_read('../configs/FixedStepIntegrator.yaml')
-    keff_range = np.array([1e-5, 5e-5, 1e-4, 5e-4, 1e-3])
-    beff_range = np.flipud(np.linspace(5e-9, 5e-7, 50))
+    keff_range = np.array([1e-5, 5e-5, 1e-4, 5e-4])
+    beff_range = np.flipud(np.linspace(5e-9, 5e-7, 20))
     i = configs['i']
     for divider in [50., 120.]:
         for beff in beff_range:
@@ -149,11 +141,11 @@ def nr_test():
                                 raise ValueError
                             configs['w_d'] = w_res
                             configs['tfin'] = np.array(
-                                [20.]) if 20. > 4. / gamma else \
+                                [10.]) if 10. > 4. / gamma else \
                                 np.array([4 / gamma])
                             print(w_res, gamma)
                             print('keff k\' beff b\' divider', keff, kpr, beff,
-                                  bpr, divider)
+                                  bpr, divider, 'full digitisation')
 
                             rk_test = exp.FixedStepIntegrator(
                                 config=configs, norm_struct=False)
@@ -179,7 +171,8 @@ def nr_test():
                             # NOTE this is because g0mag is 10^-7
                             mmts[2, :] = np.abs(mmts[2, :] / np.angle(transfer))
                             print(mmts)
-                            with open('NR-no-delay-var-b-k.txt', 'a') as f:
+                            with open('NR-no-delay-var-full-digitisation-b-'
+                                      'k.txt', 'a') as f:
                                 write_string = '{} {} {} {} {} {} {} {} {} {}' \
                                                ' {} {}'.format(
                                     divider, kpr, keff, bpr, beff, delay,
@@ -195,6 +188,62 @@ def nr_test():
 
 if __name__ == '__main__':
     # main(make_then_read=False)
-    nr_test()
-    #read_saved = exp.ReadAllData()
-    #read_saved.run()
+    # nr_test()
+    print('Read all data for delay sweep 2')
+    read_saved = exp.ReadAllData()
+    read_saved.run()
+
+
+#if __name__ == '__main__':
+#    configs = h.yaml_read('../configs/TheoryVsFourier.yaml')
+#    b_range = [2.e-6, 5.e-6, 1.e-8, 2.e-8, 3.e-8, 5.e-8, 8.e-8, 5.e-10]
+#    k_range = [1.e-5, 2.e-5, 3.e-5, 5.e-5, 8.e-5, 1.e-4, 2.e-4, 3.e-4, 5.e-4,
+#               8.e-4, 1.e-3, 2.e-3]
+#    num_terms = [10, 50, 100, 200]
+#    for b in b_range:
+#        for k in k_range:
+#            for num_term in num_terms:
+#                configs['b'] = np.array([b])
+#                configs['k'] = np.array([k])
+#                configs['num_terms'] = np.array([num_term])
+#                try:
+#                    w_res = t.w_res_gamma(b, k, 1e-7)[0]
+#                    if w_res < 10:
+#                        pass
+#                    else:
+#                        errs = TheoryVsFourier(config=configs)
+#                        results = errs.run(savedata=False)
+#                        with open('TheoryVsFourierErrors_dt120.txt',
+    # 'ab') as f:
+#                            np.savetxt(f, results, delimiter=',',
+#                                       newline='\r\n')
+#                except ValueError:
+#                    pass
+#    #delay_in_thetadot = FixedStepIntegrator()
+#    #delay_in_thetadot.run()
+#    #measure_acc = MeasuringAccuracy()
+#    #measure_acc.run(savedata=True, plot=True)
+
+#if __name__ == '__main__':
+#    # same beff, varying keff
+#    files = [r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+#             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+#             r'/FixedStepIntegrator-2017-05-03-10-39-27-all-mmts.csv',
+#             r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+#             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+#             r'/FixedStepIntegrator-2017-05-03-11-09-13-all-mmts.csv',
+#             r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+#             r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+#             r'/FixedStepIntegrator-2017-05-03-10-12-01-all-mmts.csv']
+#
+#    # same keff, varying beff
+#    #files = [r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+#    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+#    #         r'/FixedStepIntegrator-2017-05-03-10-39-27-all-mmts.csv',
+#    #         r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+#    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+#    #         r'/FixedStepIntegrator-2017-05-03-10-48-26-all-mmts.csv',
+#    #         r'C:/Users/Abhishek/OneDrive - University Of Cambridge/Project/'
+#    #         r'Tests/ExperimentClasses/FixedStepIntegrator/NR-varying-wd'
+#    #         r'/FixedStepIntegrator-2017-05-03-10-30-42-all-mmts.csv']
+#    read_plot(files)

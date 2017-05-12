@@ -1,9 +1,8 @@
 """Imports useful functions from Arduino code to enable values to be read from 
 and written to the .so file. Note the .so file can only be run in Linux."""
 
-from ctypes import cdll
 from ctypes import c_int
-
+from ctypes import cdll
 
 # Load the source object and import the relevant functions to enable reading
 # and writing of global variables.
@@ -39,7 +38,6 @@ def to_voltage(dm_less_value, res_bit=12, min_voltage=0.55, max_voltage=2.75):
     :param min_voltage: Minimum voltage - mapped to 0.
     :param max_voltage: Maximum voltage - mapped to 2^(res_bit)-1.
     :return: The voltage equivalent in V."""
-
     max_val = 2**res_bit - 1
     dm_less_value = _check_within_range(dm_less_value, 0, max_val)
     # Note that values vary between 0 and 2^(res_bits) - 1. Map accordingly.

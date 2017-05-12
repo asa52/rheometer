@@ -1,4 +1,5 @@
-// Feedback functions.
+/*Feedback functions. Handles measurement processing to calculate the next
+theta, etc values.*/
 
 void handle_const_strain_feedback() {
 // what does this function do?

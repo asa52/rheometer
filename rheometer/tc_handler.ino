@@ -1,4 +1,4 @@
-/*Main timer-counter handler function. is this the main function instead of loop?*/
+/*Main timer-counter handler function. The main function instead of loop.*/
 
 void TC0_Handler() {
   // why does this function run: it is never explicitly called???? is this the main function?
