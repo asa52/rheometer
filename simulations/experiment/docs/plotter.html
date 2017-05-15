@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module plotter</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>plotter</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:c%3A%5Cusers%5Cabhishek%5Conedrive%20-%20university%20of%20cambridge%5Cproject%5Ccode%5Csimulations%5Cexperiment%5Cplotter.py">c:\users\abhishek\onedrive - university of cambridge\project\code\simulations\experiment\plotter.py</a></font></td></tr></table>
+    <p><tt>Plotting&nbsp;functions&nbsp;for&nbsp;the&nbsp;main&nbsp;types&nbsp;of&nbsp;plots&nbsp;I&nbsp;need.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="helpers.html">helpers</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top><a href="matplotlib.pyplot.html">matplotlib.pyplot</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-two_by_n_plotter"><strong>two_by_n_plotter</strong></a>(datasets, start, params_dict, savepath=None, show=False, tag=None, x_axes_labels=None, y_top_labels=None, y_bottom_labels=None, **kwargs)</dt><dd><tt>Plots&nbsp;a&nbsp;2&nbsp;x&nbsp;N&nbsp;series&nbsp;of&nbsp;subplots&nbsp;in&nbsp;a&nbsp;single&nbsp;figure.&nbsp;The&nbsp;format&nbsp;for&nbsp;<br>
+datasets&nbsp;is:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[[x1_top1,&nbsp;y1_top1],&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[x2_top1,&nbsp;y2_top1],&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[[x1_bottom1,&nbsp;y1_bottom1],&nbsp;[x2_bottom1,&nbsp;y2_bottom1],&nbsp;...],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;].<br>
+x1,&nbsp;y1&nbsp;is&nbsp;one&nbsp;data&nbsp;series,&nbsp;plotted&nbsp;in&nbsp;either&nbsp;the&nbsp;top&nbsp;or&nbsp;bottom&nbsp;plot&nbsp;of&nbsp;<br>
+set&nbsp;n&nbsp;of&nbsp;N.&nbsp;Error&nbsp;bars&nbsp;may&nbsp;be&nbsp;allowed&nbsp;by&nbsp;making&nbsp;x&nbsp;or&nbsp;y&nbsp;a&nbsp;2-column&nbsp;array,&nbsp;<br>
+with&nbsp;the&nbsp;second&nbsp;column&nbsp;specifying&nbsp;the&nbsp;errors.&nbsp;The&nbsp;x&nbsp;axes&nbsp;of&nbsp;the&nbsp;top&nbsp;and&nbsp;<br>
+bottom&nbsp;plot&nbsp;are&nbsp;shared&nbsp;in&nbsp;each&nbsp;pair.&nbsp;A&nbsp;third&nbsp;entry&nbsp;in&nbsp;[x1,&nbsp;y1,&nbsp;label]&nbsp;is&nbsp;<br>
+a&nbsp;string&nbsp;specifying&nbsp;the&nbsp;label&nbsp;of&nbsp;the&nbsp;data&nbsp;series,&nbsp;if&nbsp;one&nbsp;is&nbsp;desired&nbsp;for&nbsp;a&nbsp;<br>
+legend.&nbsp;A&nbsp;fourth&nbsp;entry&nbsp;after&nbsp;that&nbsp;can&nbsp;be&nbsp;used&nbsp;for&nbsp;the&nbsp;fmt&nbsp;(markerstyle)&nbsp;for&nbsp;<br>
+that&nbsp;series.<br>
+The&nbsp;axes&nbsp;labels&nbsp;are&nbsp;lists&nbsp;with&nbsp;the&nbsp;appropriate&nbsp;string&nbsp;labels.&nbsp;Axes&nbsp;are&nbsp;<br>
+labelled&nbsp;from&nbsp;left&nbsp;to&nbsp;right&nbsp;in&nbsp;the&nbsp;figure.<br>
+params_dict&nbsp;specifies&nbsp;the&nbsp;parameters&nbsp;to&nbsp;be&nbsp;written&nbsp;to&nbsp;the&nbsp;text&nbsp;file&nbsp;<br>
+accompanying&nbsp;the&nbsp;plot,&nbsp;to&nbsp;record&nbsp;the&nbsp;control&nbsp;variables.<br>
+kwargs&nbsp;is&nbsp;a&nbsp;list&nbsp;of&nbsp;custom&nbsp;commands&nbsp;to&nbsp;be&nbsp;passed&nbsp;to&nbsp;the&nbsp;plot,&nbsp;such&nbsp;as&nbsp;<br>
+legend&nbsp;formats,&nbsp;just&nbsp;before&nbsp;plotting.&nbsp;They&nbsp;are&nbsp;called&nbsp;as&nbsp;methods&nbsp;of&nbsp;the&nbsp;<br>
+figure&nbsp;object.&nbsp;The&nbsp;'legend'&nbsp;parameter&nbsp;takes&nbsp;a&nbsp;dictionary&nbsp;of&nbsp;keyword&nbsp;<br>
+arguments&nbsp;as&nbsp;its&nbsp;value;&nbsp;these&nbsp;are&nbsp;passed&nbsp;into&nbsp;the&nbsp;fig.legend&nbsp;method,&nbsp;<br>
+for&nbsp;example.</tt></dd></dl>
+</td></tr></table>
+</body></html>

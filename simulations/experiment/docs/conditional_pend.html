@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module conditional_pend</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>conditional_pend</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:c%3A%5Cusers%5Cabhishek%5Conedrive%20-%20university%20of%20cambridge%5Cproject%5Ccode%5Csimulations%5Cexperiment%5Cconditional_pend.py">c:\users\abhishek\onedrive - university of cambridge\project\code\simulations\experiment\conditional_pend.py</a></font></td></tr></table>
+    <p><tt>Code&nbsp;for&nbsp;the&nbsp;simulation&nbsp;of&nbsp;the&nbsp;pendulum&nbsp;under&nbsp;NR.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="helpers.html">helpers</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top></td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-analytic_torque"><strong>analytic_torque</strong></a>(t, omega_ds, amplitudes, phases)</dt><dd><tt>Return&nbsp;the&nbsp;value&nbsp;of&nbsp;the&nbsp;analytic&nbsp;driving&nbsp;torque&nbsp;at&nbsp;time&nbsp;t.<br>
+:param&nbsp;t:&nbsp;Time&nbsp;in&nbsp;seconds&nbsp;-&nbsp;a&nbsp;single&nbsp;value.<br>
+:param&nbsp;omega_ds:&nbsp;Angular&nbsp;frequency&nbsp;of&nbsp;the&nbsp;sinusoid.<br>
+:param&nbsp;amplitudes:&nbsp;Amplitude&nbsp;of&nbsp;sinusoid.<br>
+:param&nbsp;phases:&nbsp;Phase&nbsp;of&nbsp;sinusoid&nbsp;in&nbsp;radians.</tt></dd></dl>
+ <dl><dt><a name="-f_analytic"><strong>f_analytic</strong></a>(t, y, i, g_0, b, b_prime, k, k_prime)</dt><dd><tt>Returns&nbsp;the&nbsp;RHS&nbsp;of&nbsp;the&nbsp;ODE&nbsp;y'(t)&nbsp;=&nbsp;f(t,&nbsp;y).<br>
+:param&nbsp;t:&nbsp;Time&nbsp;in&nbsp;seconds.<br>
+:param&nbsp;y:&nbsp;A&nbsp;vector&nbsp;of&nbsp;[theta,&nbsp;omega],&nbsp;where&nbsp;omega&nbsp;=&nbsp;d(theta)/dt.<br>
+:param&nbsp;i:&nbsp;Moment&nbsp;of&nbsp;inertia&nbsp;of&nbsp;pendulum.<br>
+:param&nbsp;g_0:&nbsp;Analytic&nbsp;driving&nbsp;torque&nbsp;function&nbsp;object,&nbsp;eg.&nbsp;g_0(t)&nbsp;=&nbsp;sin(t).<br>
+:param&nbsp;b_prime:&nbsp;Simulated&nbsp;damping&nbsp;coefficient.<br>
+:param&nbsp;k_prime:&nbsp;Simulated&nbsp;elastic&nbsp;coefficient.<br>
+:param&nbsp;b:&nbsp;Actual&nbsp;damping&nbsp;coefficient&nbsp;of&nbsp;system.<br>
+:param&nbsp;k:&nbsp;Actual&nbsp;elastic&nbsp;coefficient&nbsp;of&nbsp;system.</tt></dd></dl>
+ <dl><dt><a name="-f_full_torque"><strong>f_full_torque</strong></a>(t, y, i, b, k, g)</dt><dd><tt>RHS&nbsp;of&nbsp;the&nbsp;ODE&nbsp;with&nbsp;only&nbsp;full&nbsp;torque&nbsp;on&nbsp;the&nbsp;RHS.&nbsp;Variables&nbsp;defined&nbsp;as&nbsp;<br>
+above.&nbsp;Has&nbsp;the&nbsp;same&nbsp;Jacobian&nbsp;as&nbsp;f.</tt></dd></dl>
+ <dl><dt><a name="-ode_integrator"><strong>ode_integrator</strong></a>(y0, t0, i, b_prime, k_prime, b, k, g_0_mags, w_ds, phases, t_fin, dt, torque_func)</dt><dd><tt>Test&nbsp;function&nbsp;for&nbsp;ODE&nbsp;integration.</tt></dd></dl>
+ <dl><dt><a name="-rk4"><strong>rk4</strong></a>(f)</dt><dd><tt>Source:&nbsp;https://rosettacode.org/wiki/Runge-Kutta_method#Python.&nbsp;Runge&nbsp;<br>
+Kutta&nbsp;4th&nbsp;order&nbsp;code.</tt></dd></dl>
+</td></tr></table>
+</body></html>

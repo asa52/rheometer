@@ -1,10 +1,12 @@
 """Fourier decomposition of the digitised analytic torque, to be evaluated 
 and then solved for theoretically using theory functions."""
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import simps
 
 import helpers as h
+import theory as t
 
 
 def g_s(t, angular_freq, delta_t, g_0):
@@ -34,13 +36,13 @@ def g_s(t, angular_freq, delta_t, g_0):
 def a_formula(t, angular_freq, delta_t, g_0, index):
     """Formula to calculate 'a' coefficient."""
     return np.array([g_s(t, angular_freq, delta_t, g_0)]).T * \
-        np.cos(angular_freq * np.outer(t, index))
+           np.cos(angular_freq * np.outer(t, index))
 
 
 def b_formula(t, angular_freq, delta_t, g_0, index):
     """Formula to calculate 'b' coefficient."""
     return np.array([g_s(t, angular_freq, delta_t, g_0)]).T * \
-        np.sin(angular_freq * np.outer(t, index))
+           np.sin(angular_freq * np.outer(t, index))
 
 
 def calc_fourier_coeffs(indices, angular_freq, delta_t, g_0):
@@ -54,7 +56,7 @@ def calc_fourier_coeffs(indices, angular_freq, delta_t, g_0):
     :param delta_t: Torque recalculation time.
     :param g_0: Magnitude of the sine torque function."""
     assert indices.dtype == np.int32
-    period = 2*np.pi/angular_freq
+    period = 2 * np.pi / angular_freq
     integration_t_range = np.arange(0, period, delta_t / 100)
     a_range = a_formula(integration_t_range, angular_freq, delta_t, g_0,
                         indices)
@@ -68,8 +70,8 @@ def calc_fourier_coeffs(indices, angular_freq, delta_t, g_0):
 def convert_to_mag_phis(indices, a_m, b_m):
     """Convert the a_ms and b_ms to magnitudes and phis of R*sin(angular_freq * 
     t + phi)."""
-    mags = np.sqrt(a_m**2 + b_m**2)
-    phis = np.arctan(a_m/b_m)
+    mags = np.sqrt(a_m ** 2 + b_m ** 2)
+    phis = np.arctan(a_m / b_m)
     return np.array([indices, mags, phis]).T
 
 
@@ -96,3 +98,34 @@ def get_fourier_series(n, w_d, dt, g_0):
     ind_mag_phi = convert_to_mag_phis(ind_a_b[:, 0], ind_a_b[:, 1],
                                       ind_a_b[:, 2])
     return ind_mag_phi
+
+
+def fourier_transfer(mags, phis, w_d, g_0, k, i, b, k_pr, b_pr):
+    """Calculate the response function for a fourier series input torque. 
+    Works for a single driving frequency."""
+    mags, phis = h.check_types_lengths(mags, phis)
+    w_d = h.convert_to_array(w_d)
+    n_terms = len(mags)
+    num_freqs = len(w_d)
+    term_num = np.arange(1, n_terms + 1, 1)
+    print(term_num, w_d)
+    k_eff = k - k_pr
+    b_eff = b - b_pr
+    resps = np.sum(np.outer(mags * np.cos(phis), np.ones(num_freqs)) /
+                   ((k_eff / i - np.outer(term_num ** 2, w_d ** 2)) + 1j * (
+                       b_eff / i) * np.outer(term_num, w_d)),
+                   axis=0) / g_0
+    return resps
+
+
+def transfer_over_fourier(g_0, b, k, i, b_pr, k_pr, w_d):
+    analogue = t.theory_response(b, k, i, b_pr, k_pr, w_d) * i
+    digital = []
+    for drive_freq in w_d:
+        dt = 2 * np.pi / (drive_freq * 120)
+        ind_mag_phi = get_fourier_series(10, drive_freq, dt, g_0)
+        digital.append(fourier_transfer(ind_mag_phi[:, 1], ind_mag_phi[:, 2],
+                                        drive_freq, g_0, k, i, b, k_pr, b_pr))
+    plt.plot(w_d, np.absolute(analogue))
+    plt.plot(w_d, np.absolute(digital))
+    plt.show()

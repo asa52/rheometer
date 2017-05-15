@@ -8,8 +8,7 @@ void TC0_Handler() {
   pos = analogRead(measure); //reads the voltage at analog pin A0
 
   if ((pos >= 1558 && pos <= 3633)) {
-    // TODO Why this limit on the pos value?
-    int num = (pos - pos_0); // Convert to index from which the voltage from A0 can be converted into TODO 'distance values'
+    int num = (pos - pos_0);
     mu = A0mu[num]; //0.1 microns
   }
 
@@ -29,7 +28,7 @@ void TC0_Handler() {
     func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048)
             + (((mu - used_zero_A0) * simu_k) / (simu_k_unit))  // elastic response - CHECK
             + ((dmudt * simu_b) / (simu_b_unit)))  // viscous response - CHECK
-           + 2047;  // midpoint
+            + 2047;  // midpoint
   } else if (NR == 1 && run_option == 2) {
     func = //DC_func +
       (((mu - used_zero_A0) * simu_k) / (simu_k_unit))
@@ -44,7 +43,7 @@ void TC0_Handler() {
     func = 0;
   }
   //REG_DACC_CDR = func; // analog write to DAC1
-  analogWrite(DAC0, func); //change to lower level code TODO
+  analogWrite(DAC0, func); //change to lower level code
   SerialUSB.println("Dataset-t-timeElapsed-func");
   SerialUSB.println(t);
   SerialUSB.println(timeElapsed);

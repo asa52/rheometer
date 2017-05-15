@@ -102,8 +102,7 @@ void TC0_Handler() {
     pos = analogRead(measure); //reads the voltage at analog pin A0
 
     if ((pos >= 1558 && pos <= 3633)) {
-        // TODO Why this limit on the pos value?
-        int num = (pos - pos_0); // Convert to index from which the voltage from A0 can be converted into TODO 'distance values'
+        int num = (pos - pos_0);
         //mu_two_back = mu_one_back;
         //mu_one_back = mu;
         mu = A0mu[num];
@@ -147,7 +146,7 @@ void TC0_Handler() {
         func = 0;
     }
 
-    REG_DACC_CDR = func; // TODO ???
+    REG_DACC_CDR = func;
 
     if (2 == NR && (0 == run_option || 1 == run_option)) {
         func = ((((waveformsTable[t] - waveformsTable[0]) * amp) / 2048)

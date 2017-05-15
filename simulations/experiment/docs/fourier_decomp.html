@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module fourier_decomp</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>fourier_decomp</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:c%3A%5Cusers%5Cabhishek%5Conedrive%20-%20university%20of%20cambridge%5Cproject%5Ccode%5Csimulations%5Cexperiment%5Cfourier_decomp.py">c:\users\abhishek\onedrive - university of cambridge\project\code\simulations\experiment\fourier_decomp.py</a></font></td></tr></table>
+    <p><tt>Fourier&nbsp;decomposition&nbsp;of&nbsp;the&nbsp;digitised&nbsp;analytic&nbsp;torque,&nbsp;to&nbsp;be&nbsp;evaluated&nbsp;<br>
+and&nbsp;then&nbsp;solved&nbsp;for&nbsp;theoretically&nbsp;using&nbsp;theory&nbsp;functions.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="helpers.html">helpers</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top><a href="matplotlib.pyplot.html">matplotlib.pyplot</a><br>
+</td><td width="25%" valign=top><a href="theory.html">theory</a><br>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-a_formula"><strong>a_formula</strong></a>(t, angular_freq, delta_t, g_0, index)</dt><dd><tt>Formula&nbsp;to&nbsp;calculate&nbsp;'a'&nbsp;coefficient.</tt></dd></dl>
+ <dl><dt><a name="-b_formula"><strong>b_formula</strong></a>(t, angular_freq, delta_t, g_0, index)</dt><dd><tt>Formula&nbsp;to&nbsp;calculate&nbsp;'b'&nbsp;coefficient.</tt></dd></dl>
+ <dl><dt><a name="-calc_fourier_coeffs"><strong>calc_fourier_coeffs</strong></a>(indices, angular_freq, delta_t, g_0)</dt><dd><tt>Calculate&nbsp;the&nbsp;Fourier&nbsp;series&nbsp;coefficients&nbsp;using&nbsp;Simpson's&nbsp;rule.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;a_m&nbsp;=&nbsp;\int_{0}^{T}&nbsp;2/T&nbsp;*&nbsp;G_s(t)&nbsp;*&nbsp;cos(2*pi*m*t/T)&nbsp;dt,&nbsp;and&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;b_m&nbsp;=&nbsp;\int_{0}^{T}&nbsp;2/T&nbsp;*&nbsp;G_s(t)&nbsp;*&nbsp;sin(2*pi*m*t/T)&nbsp;dt.<br>
+:param&nbsp;indices:&nbsp;Indices&nbsp;m&nbsp;of&nbsp;the&nbsp;Fourier&nbsp;coefficients&nbsp;to&nbsp;calculate.&nbsp;<br>
+generally&nbsp;set&nbsp;to&nbsp;a&nbsp;linspace&nbsp;from&nbsp;1&nbsp;to&nbsp;a&nbsp;certain&nbsp;number&nbsp;(ideally&nbsp;<br>
+infinite).<br>
+:param&nbsp;angular_freq:&nbsp;Angular&nbsp;frequency&nbsp;of&nbsp;the&nbsp;sine&nbsp;function.<br>
+:param&nbsp;delta_t:&nbsp;Torque&nbsp;recalculation&nbsp;time.<br>
+:param&nbsp;g_0:&nbsp;Magnitude&nbsp;of&nbsp;the&nbsp;sine&nbsp;torque&nbsp;function.</tt></dd></dl>
+ <dl><dt><a name="-convert_to_mag_phis"><strong>convert_to_mag_phis</strong></a>(indices, a_m, b_m)</dt><dd><tt>Convert&nbsp;the&nbsp;a_ms&nbsp;and&nbsp;b_ms&nbsp;to&nbsp;magnitudes&nbsp;and&nbsp;phis&nbsp;of&nbsp;R*sin(angular_freq&nbsp;*&nbsp;<br>
+t&nbsp;+&nbsp;phi).</tt></dd></dl>
+ <dl><dt><a name="-fourier_transfer"><strong>fourier_transfer</strong></a>(mags, phis, w_d, g_0, k, i, b, k_pr, b_pr)</dt><dd><tt>Calculate&nbsp;the&nbsp;response&nbsp;function&nbsp;for&nbsp;a&nbsp;fourier&nbsp;series&nbsp;input&nbsp;torque.&nbsp;<br>
+Works&nbsp;for&nbsp;a&nbsp;single&nbsp;driving&nbsp;frequency.</tt></dd></dl>
+ <dl><dt><a name="-g_s"><strong>g_s</strong></a>(t, angular_freq, delta_t, g_0)</dt><dd><tt>Return&nbsp;the&nbsp;value&nbsp;of&nbsp;the&nbsp;digitised&nbsp;analytic&nbsp;torque&nbsp;at&nbsp;time&nbsp;t.<br>
+G_s(t)&nbsp;=&nbsp;g_0&nbsp;*&nbsp;{0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for&nbsp;0&nbsp;&nbsp;&lt;=&nbsp;t&nbsp;&lt;&nbsp;delta_t,&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sin(angular_freq&nbsp;*&nbsp;t1)&nbsp;&nbsp;for&nbsp;t1&nbsp;&lt;=&nbsp;t&nbsp;&lt;&nbsp;t1&nbsp;+&nbsp;delta_t,&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sin(angular_freq&nbsp;*&nbsp;(T&nbsp;-&nbsp;delta_t))&nbsp;for&nbsp;T-delta_t&nbsp;&lt;=&nbsp;t&nbsp;&lt;&nbsp;T}.<br>
+:param&nbsp;t:&nbsp;Time&nbsp;array&nbsp;in&nbsp;seconds.<br>
+:param&nbsp;angular_freq:&nbsp;Angular&nbsp;frequency&nbsp;of&nbsp;the&nbsp;driving&nbsp;torque.<br>
+:param&nbsp;delta_t:&nbsp;The&nbsp;measurement&nbsp;time&nbsp;interval.&nbsp;ADVISE&nbsp;to&nbsp;be&nbsp;integer&nbsp;<br>
+fraction&nbsp;of&nbsp;T.<br>
+:param&nbsp;g_0:&nbsp;Magnitude&nbsp;of&nbsp;the&nbsp;torque.</tt></dd></dl>
+ <dl><dt><a name="-get_fourier_series"><strong>get_fourier_series</strong></a>(n, w_d, dt, g_0)</dt><dd><tt>Calculate&nbsp;first&nbsp;n&nbsp;terms&nbsp;of&nbsp;a&nbsp;Fourier&nbsp;series&nbsp;for&nbsp;the&nbsp;digitised&nbsp;sine&nbsp;<br>
+torque.&nbsp;Return&nbsp;the&nbsp;value&nbsp;of&nbsp;the&nbsp;Fourier-calculated&nbsp;torque&nbsp;at&nbsp;specified&nbsp;<br>
+times.&nbsp;NOTE&nbsp;this&nbsp;can't&nbsp;deal&nbsp;with&nbsp;phi&nbsp;being&nbsp;nonzero!<br>
+:param&nbsp;n:&nbsp;Number&nbsp;of&nbsp;Fourier&nbsp;series&nbsp;terms&nbsp;to&nbsp;return.<br>
+:param&nbsp;w_d:&nbsp;Angular&nbsp;frequency&nbsp;of&nbsp;sine&nbsp;wave.<br>
+:param&nbsp;dt:&nbsp;Sampling&nbsp;time&nbsp;of&nbsp;the&nbsp;sine&nbsp;for&nbsp;digitisation.<br>
+:param&nbsp;g_0:&nbsp;Amplitude&nbsp;of&nbsp;the&nbsp;driving&nbsp;torque.</tt></dd></dl>
+ <dl><dt><a name="-get_torque"><strong>get_torque</strong></a>(t, indices, mags, phis, ang_freq)</dt><dd><tt>Calculate&nbsp;the&nbsp;torque&nbsp;in&nbsp;Nm&nbsp;given&nbsp;the&nbsp;Fourier&nbsp;components&nbsp;of&nbsp;the&nbsp;torque.</tt></dd></dl>
+ <dl><dt><a name="-transfer_over_fourier"><strong>transfer_over_fourier</strong></a>(g_0, b, k, i, b_pr, k_pr, w_d)</dt></dl>
+</td></tr></table>
+</body></html>

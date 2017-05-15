@@ -344,19 +344,6 @@ class TheoryVsFourier(Experiment):
         f_torque = fourier.get_torque(times, ind_mag_phi[:, 0],
                                       ind_mag_phi[:, 1], ind_mag_phi[:, 2], w_d)
 
-        # Calculate theoretical vs actual torque and plot.
-        #plt.plot(times, f_torque, label='Digitised')
-        #plt.plot(times, g_0_mag * np.sin(w_d * times + phase),
-        ## label='Analogue')
-        #plt.tick_params(direction='out')
-        #plt.grid(True)
-        #plt.xlabel('t/s', fontweight='bold', fontsize=13)
-        #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
-        #plt.show()
-        # Calculate phase shift caused by offset of digitised compared to
-        # analogue sine.
-        #phase += dt * w_d / 2
-
         # Calculate theoretical results.
         torque_sine = h.baker(t.calculate_sine_pi,
                               ["", "", "", "", g_0_mag, w_d, phase - dt * w_d
@@ -499,10 +486,6 @@ class NRRegimes(Experiment):
     def _update_torque(self, input_theta):
         """Get the updated torque from the C script given the angular 
         displacement in radians."""
-
-        # convert to microns and then find closest match to a value from the
-        # proximity sensor. todo why is the calibration curve for the sensor
-        # todo increasing in signal as the displacement increases?
         input_theta /= self.prms['rad_to_0.1um']
         idx = (np.abs(self.prms['sensor_to_disp'] - input_theta)).argmin()\
             + 1558
@@ -518,7 +501,6 @@ class NRRegimes(Experiment):
         self.theta_sim = self.digitised_theta_sim * self.prms['rad_to_0.1um']
         self.omega_sim = self.digitised_omega_sim * self.prms['rad_to_0.1um']\
             / self.dt
-        # todo check the above formulae.
 
         self.ccode_time = talk.get_point_in_cycle()
         print("Torque now updated to {}".format(self.digitised_torque))
@@ -662,13 +644,17 @@ class FixedStepIntegrator(Experiment):
         self.theta_sim = theta_w_delay
         last_theta_sim = self.torques[-1, 2]
         self.omega_sim = (self.theta_sim - last_theta_sim) / self.dt
-        torque_calc = h.round_partial(self.torque_sine[i], digit_resolution) + \
-            h.round_partial(self.k_prime * self.theta_sim, digit_resolution) + \
-            h.round_partial(self.b_prime * self.omega_sim, digit_resolution)
-        if torque_calc > self.g_0:
-            torque_calc = self.g_0
-        elif torque_calc < -self.g_0:
-            torque_calc = -self.g_0
+        #torque_calc = h.round_partial(self.torque_sine[i], digit_resolution)
+        ##  + \
+        #    h.round_partial(self.k_prime * self.theta_sim, digit_resolution)
+        ##  + \
+        #    h.round_partial(self.b_prime * self.omega_sim, digit_resolution)
+        #if torque_calc > self.g_0:
+        #    torque_calc = self.g_0
+        #elif torque_calc < -self.g_0:
+        #    torque_calc = -self.g_0
+        torque_calc = self.torque_sine[i] + self.k_prime * self.theta_sim + \
+            self.b_prime * self.omega_sim
         self.total_torque = torque_calc
 
     def _get_recent_torque(self, current_time):
@@ -760,38 +746,6 @@ class FixedStepIntegrator(Experiment):
             while time_index < 10:
                 time_index = np.abs(times - num * decimal_periods).argmin()
                 num += 1
-
-            #if self.b - self.b_prime > 0:
-            #    # Will only reach steady state if this is the case,
-                # otherwise no
-            #    # point making a response curve. Measure one point. b - b' = 0
-            #    # has two steady state frequencies, the transient and PI.
-            #    ss_times = m.identify_ss(results[:, 0], results[:, 1])
-#
-            #    if ss_times is not False:
-            #        frq, fft_theta = m.calc_fft(
-            #            results[:, 0][(results[:, 0] >= ss_times[0]) *
-            #                          (results[:, 0] <= ss_times[1])],
-            #            results[:, 1][(results[:, 0] >= ss_times[0]) *
-            #                          (results[:, 0] <= ss_times[1])])
-            #        # for low frequencies, the length of time of the signal
-                # must
-            #        # also be sufficiently wrong for the peak position to be
-            #        # measured properly.
-#
-            #        # Half-amplitude of peak used to calculate bandwidth.
-            #        freq = m.calc_freqs(np.absolute(fft_theta), frq, n_peaks=1)
-            #    else:
-            #        raise Exception('Panic 2.')
-
-            # Calculate theoretical vs actual torque and plot.
-            #plt.plot(self.torques[:, 0], f_torque, label='Fourier-calculated')
-            #plt.plot(self.torques[:, 0], self.torques[:, 1], label='Measured')
-            #plt.tick_params(direction='out')
-            #plt.grid(True)
-            #plt.xlabel('t/s', fontweight='bold', fontsize=13)
-            #plt.ylabel('$G_{tot}$/Nm', fontweight='bold', fontsize=13)
-            #plt.show()
 
             print(
                 "Init parameters: dt: {}, b: {}, b': {}, k: {}, k': {}, I: {}, "
@@ -999,8 +953,6 @@ class ReadAllData(Experiment):
         fft_data = r.match_torques(sorted_by_params, plot_real=self.prms[
             'plot_real'][0], savepath=directory + 'plots/')
         print(fft_data)
-        with open('sweep-wd-const-delay-2.txt', 'ab') as f:
-            f.write(fft_data)
         if plot:
             r.prepare_to_plot(fft_data, need_wd, savepath=directory + 'plots/')
         

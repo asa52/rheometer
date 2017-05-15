@@ -1,0 +1,72 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module measurement</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>measurement</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:c%3A%5Cusers%5Cabhishek%5Conedrive%20-%20university%20of%20cambridge%5Cproject%5Ccode%5Csimulations%5Cexperiment%5Cmeasurement.py">c:\users\abhishek\onedrive - university of cambridge\project\code\simulations\experiment\measurement.py</a></font></td></tr></table>
+    <p><tt>Functions&nbsp;to&nbsp;perform&nbsp;measurements&nbsp;and&nbsp;check&nbsp;other&nbsp;qualities&nbsp;of&nbsp;the&nbsp;signal&nbsp;<br>
+being&nbsp;processed.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="scipy.fftpack.html">scipy.fftpack</a><br>
+</td><td width="25%" valign=top><a href="helpers.html">helpers</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top><a href="theory.html">theory</a><br>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-calc_fft"><strong>calc_fft</strong></a>(x_axis, y_axis)</dt><dd><tt>Calculate&nbsp;the&nbsp;FFT&nbsp;of&nbsp;y&nbsp;over&nbsp;domain&nbsp;x.</tt></dd></dl>
+ <dl><dt><a name="-calc_freqs"><strong>calc_freqs</strong></a>(full_fft_y, freqs, n_peaks=1)</dt><dd><tt>Calculate&nbsp;the&nbsp;top&nbsp;n_peaks&nbsp;frequencies&nbsp;in&nbsp;a&nbsp;FFT'd&nbsp;signal&nbsp;full_fft_y.</tt></dd></dl>
+ <dl><dt><a name="-calc_norm_errs"><strong>calc_norm_errs</strong></a>(*datasets)</dt><dd><tt>Calculate&nbsp;the&nbsp;normalised&nbsp;error&nbsp;for&nbsp;each&nbsp;dataset&nbsp;in&nbsp;datasets,&nbsp;<br>
+and&nbsp;return&nbsp;those.&nbsp;*Datasets&nbsp;is&nbsp;a&nbsp;deconstructed&nbsp;list&nbsp;of&nbsp;lists,&nbsp;ie.<br>
+datasets&nbsp;=&nbsp;[[exp_1,&nbsp;theory_1],&nbsp;[exp_2,&nbsp;theory_2],&nbsp;...].&nbsp;Each&nbsp;set&nbsp;is&nbsp;<br>
+normalised&nbsp;by&nbsp;the&nbsp;value&nbsp;of&nbsp;theory_n&nbsp;at&nbsp;that&nbsp;point.&nbsp;Both&nbsp;data&nbsp;series&nbsp;in&nbsp;<br>
+the&nbsp;dataset&nbsp;must&nbsp;have&nbsp;the&nbsp;same&nbsp;dimensions.&nbsp;Also&nbsp;returns&nbsp;the&nbsp;absolute&nbsp;<br>
+errors.</tt></dd></dl>
+ <dl><dt><a name="-calc_one_amplitude"><strong>calc_one_amplitude</strong></a>(real_disps, bins=None)</dt><dd><tt>Calculate&nbsp;the&nbsp;mean&nbsp;amplitude&nbsp;of&nbsp;time-domain&nbsp;signal&nbsp;y.</tt></dd></dl>
+ <dl><dt><a name="-calc_phase"><strong>calc_phase</strong></a>(real_resp, real_torque)</dt><dd><tt>Calculate&nbsp;the&nbsp;phase&nbsp;difference&nbsp;in&nbsp;radians&nbsp;between&nbsp;the&nbsp;displacement&nbsp;and&nbsp;<br>
+the&nbsp;torque&nbsp;using&nbsp;a&nbsp;Hilbert&nbsp;transform.&nbsp;Signal&nbsp;MUST&nbsp;be&nbsp;monochromatic,&nbsp;<br>
+so&nbsp;filter&nbsp;first&nbsp;if&nbsp;necessary.<br>
+:param&nbsp;real_resp:&nbsp;The&nbsp;displacement,&nbsp;as&nbsp;an&nbsp;array.<br>
+:param&nbsp;real_torque:&nbsp;The&nbsp;analytic&nbsp;torque,&nbsp;as&nbsp;an&nbsp;array.</tt></dd></dl>
+ <dl><dt><a name="-check_nyquist"><strong>check_nyquist</strong></a>(time_array, w_d, b, b_prime, k, k_prime, i)</dt><dd><tt>Check&nbsp;Nyquist&nbsp;criterion&nbsp;is&nbsp;obeyed&nbsp;by&nbsp;the&nbsp;signal,&nbsp;for&nbsp;a&nbsp;given&nbsp;driving&nbsp;<br>
+frequency&nbsp;and&nbsp;the&nbsp;transient&nbsp;frequency&nbsp;calculated&nbsp;from&nbsp;the&nbsp;remaining&nbsp;<br>
+parameters.</tt></dd></dl>
+ <dl><dt><a name="-get_peak_pos"><strong>get_peak_pos</strong></a>(max_peaks, x_axis, y_axis)</dt><dd><tt>Calculate&nbsp;the&nbsp;positions&nbsp;and&nbsp;bandwidths&nbsp;of&nbsp;the&nbsp;resonant&nbsp;peaks.<br>
+:param&nbsp;max_peaks:&nbsp;2D&nbsp;array&nbsp;of&nbsp;[index,&nbsp;peak_value]&nbsp;entries&nbsp;for&nbsp;each&nbsp;peak,&nbsp;<br>
+as&nbsp;from&nbsp;peak&nbsp;detect&nbsp;function.<br>
+:param&nbsp;x_axis:&nbsp;Array&nbsp;of&nbsp;positions,&nbsp;for&nbsp;example&nbsp;time.<br>
+:param&nbsp;y_axis:&nbsp;Array&nbsp;of&nbsp;heights&nbsp;of&nbsp;all&nbsp;steady&nbsp;state&nbsp;data.<br>
+:return:&nbsp;Half-bandwidths&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;resonant&nbsp;signals,&nbsp;calculated&nbsp;from&nbsp;<br>
+the&nbsp;width&nbsp;of&nbsp;the&nbsp;range&nbsp;over&nbsp;which&nbsp;the&nbsp;peak&nbsp;exceeds&nbsp;the&nbsp;half-max&nbsp;height.</tt></dd></dl>
+ <dl><dt><a name="-identify_ss"><strong>identify_ss</strong></a>(x_axis, y_axis, n_per_segment=None, tol=0.03, max_increase=0.01)</dt><dd><tt>Calculate&nbsp;the&nbsp;x&nbsp;range&nbsp;over&nbsp;which&nbsp;the&nbsp;FFT&nbsp;of&nbsp;y&nbsp;is&nbsp;in&nbsp;the&nbsp;steady&nbsp;state,&nbsp;<br>
+which&nbsp;means&nbsp;the&nbsp;normalised&nbsp;correlation&nbsp;between&nbsp;consecutive&nbsp;data&nbsp;segments&nbsp;is&nbsp;<br>
+greater&nbsp;than&nbsp;min_lim&nbsp;and&nbsp;within&nbsp;tol&nbsp;of&nbsp;the&nbsp;previous.&nbsp;x&nbsp;should&nbsp;be&nbsp;<br>
+uniformly&nbsp;spaced.</tt></dd></dl>
+ <dl><dt><a name="-one_mmt_set"><strong>one_mmt_set</strong></a>(times, theta, torque, b, b_prime, k, k_prime, i)</dt><dd><tt>Measure&nbsp;one&nbsp;set&nbsp;of&nbsp;frequency,&nbsp;amplitude&nbsp;and&nbsp;phase&nbsp;values,&nbsp;given&nbsp;the&nbsp;<br>
+values&nbsp;of&nbsp;the&nbsp;relevant&nbsp;parameters.</tt></dd></dl>
+ <dl><dt><a name="-real_corr"><strong>real_corr</strong></a>(a, b)</dt><dd><tt>Calculate&nbsp;the&nbsp;correlation&nbsp;between&nbsp;the&nbsp;real&nbsp;signals&nbsp;a&nbsp;and&nbsp;b&nbsp;in&nbsp;the&nbsp;<br>
+region&nbsp;where&nbsp;they&nbsp;both&nbsp;overlap,&nbsp;assuming&nbsp;both&nbsp;are&nbsp;of&nbsp;same&nbsp;length.</tt></dd></dl>
+ <dl><dt><a name="-real_norm_correlations"><strong>real_norm_correlations</strong></a>(x_axis, y_axis, n_per_segment)</dt><dd><tt>Get&nbsp;normalised&nbsp;correlations&nbsp;of&nbsp;consecutive&nbsp;y&nbsp;segments&nbsp;with&nbsp;n_per_segment&nbsp;<br>
+points&nbsp;per&nbsp;segment&nbsp;using&nbsp;REAL&nbsp;SPACE&nbsp;measurements.</tt></dd></dl>
+ <dl><dt><a name="-remove_one_frequency"><strong>remove_one_frequency</strong></a>(times, theta, w_remove)</dt><dd><tt>Remove&nbsp;one&nbsp;frequency&nbsp;from&nbsp;the&nbsp;real&nbsp;space&nbsp;signal.<br>
+:param&nbsp;times:&nbsp;Time&nbsp;array<br>
+:param&nbsp;theta:&nbsp;Theta&nbsp;array<br>
+:param&nbsp;w_remove:&nbsp;Remove&nbsp;this&nbsp;angular&nbsp;frequency.<br>
+:return:&nbsp;The&nbsp;theta&nbsp;array&nbsp;with&nbsp;the&nbsp;frequency&nbsp;in&nbsp;question&nbsp;filtered&nbsp;out.</tt></dd></dl>
+</td></tr></table>
+</body></html>

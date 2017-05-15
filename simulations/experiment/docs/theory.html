@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module theory</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>theory</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:c%3A%5Cusers%5Cabhishek%5Conedrive%20-%20university%20of%20cambridge%5Cproject%5Ccode%5Csimulations%5Cexperiment%5Ctheory.py">c:\users\abhishek\onedrive - university of cambridge\project\code\simulations\experiment\theory.py</a></font></td></tr></table>
+    <p><tt>Theory&nbsp;scripts&nbsp;for&nbsp;a&nbsp;sinusoidal&nbsp;torque.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="helpers.html">helpers</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top></td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-calc_theory_soln"><strong>calc_theory_soln</strong></a>(t, t_i, y_i, b, k, i, baked_torque)</dt><dd><tt>NOTE:&nbsp;t&nbsp;must&nbsp;be&nbsp;an&nbsp;array&nbsp;with&nbsp;at&nbsp;least&nbsp;2&nbsp;values.&nbsp;So&nbsp;should&nbsp;the&nbsp;torque&nbsp;<br>
+amplitudes,&nbsp;phis&nbsp;and&nbsp;w_ds.<br>
+:param&nbsp;t:&nbsp;Array&nbsp;of&nbsp;time&nbsp;values&nbsp;to&nbsp;plot&nbsp;for.<br>
+:param&nbsp;t_i:&nbsp;Initial&nbsp;time.<br>
+:param&nbsp;y_i:&nbsp;Initial&nbsp;position,&nbsp;velocity.<br>
+:param&nbsp;b:&nbsp;Damping&nbsp;coefficient.<br>
+:param&nbsp;k:&nbsp;Elastic&nbsp;coefficient.<br>
+:param&nbsp;i:&nbsp;Moment&nbsp;of&nbsp;inertia.<br>
+:param&nbsp;baked_torque:&nbsp;The&nbsp;torque&nbsp;function&nbsp;to&nbsp;calculate&nbsp;the&nbsp;theta_ss&nbsp;<br>
+parameters&nbsp;with&nbsp;relevant&nbsp;parameters&nbsp;baked&nbsp;in.<br>
+:return:&nbsp;Array&nbsp;of&nbsp;[t,&nbsp;theta,&nbsp;omega],&nbsp;each&nbsp;column&nbsp;being&nbsp;a&nbsp;different&nbsp;<br>
+variable.</tt></dd></dl>
+ <dl><dt><a name="-calculate_cf_matrix"><strong>calculate_cf_matrix</strong></a>(time, b, k, i)</dt><dd><tt>Calculate&nbsp;the&nbsp;coefficients&nbsp;of&nbsp;A,&nbsp;B&nbsp;for&nbsp;the&nbsp;complementary&nbsp;function&nbsp;<br>
+solution&nbsp;of&nbsp;the&nbsp;oscillator&nbsp;ODE.<br>
+:param&nbsp;time:&nbsp;Time&nbsp;array&nbsp;or&nbsp;single&nbsp;value&nbsp;in&nbsp;seconds.<br>
+:param&nbsp;b:&nbsp;Damping&nbsp;coefficient.<br>
+:param&nbsp;k:&nbsp;Elastic&nbsp;coefficient.<br>
+:param&nbsp;i:&nbsp;Moment&nbsp;of&nbsp;inertia.<br>
+:return:&nbsp;Coefficients&nbsp;matrix:&nbsp;[[theta_A,&nbsp;theta_B],&nbsp;[omega_A,&nbsp;omega_B]].</tt></dd></dl>
+ <dl><dt><a name="-calculate_sine_pi"><strong>calculate_sine_pi</strong></a>(t, b, k, i, g_0_mag, w_d, phi)</dt><dd><tt>Calculate&nbsp;the&nbsp;particular&nbsp;integral&nbsp;contributions&nbsp;to&nbsp;theta&nbsp;and&nbsp;omega&nbsp;for&nbsp;a&nbsp;<br>
+sinusoidal&nbsp;forcing&nbsp;torque.<br>
+:param&nbsp;t:&nbsp;Array&nbsp;or&nbsp;single&nbsp;value&nbsp;of&nbsp;time&nbsp;values.<br>
+:param&nbsp;b:&nbsp;Damping&nbsp;coefficient<br>
+:param&nbsp;k:&nbsp;Elastic&nbsp;coefficient.<br>
+:param&nbsp;i:&nbsp;Moment&nbsp;of&nbsp;inertia.<br>
+:param&nbsp;g_0_mag:&nbsp;Amplitude&nbsp;of&nbsp;driving&nbsp;torque.<br>
+:param&nbsp;w_d:&nbsp;Angular&nbsp;frequency.<br>
+:param&nbsp;phi:&nbsp;Phase&nbsp;in&nbsp;radians.<br>
+:return:&nbsp;Theta&nbsp;and&nbsp;omega&nbsp;arrays&nbsp;at&nbsp;the&nbsp;times&nbsp;in&nbsp;t&nbsp;for&nbsp;the&nbsp;PI&nbsp;solution&nbsp;<br>
+part.</tt></dd></dl>
+ <dl><dt><a name="-solve_for_ics"><strong>solve_for_ics</strong></a>(t_i, theta_i, omega_i, b, k, i, baked_torque)</dt><dd><tt>Calculate&nbsp;the&nbsp;coefficients&nbsp;for&nbsp;this&nbsp;ODE&nbsp;based&nbsp;on&nbsp;the&nbsp;initial&nbsp;conditions.<br>
+:param&nbsp;t_i:&nbsp;Initial&nbsp;time.<br>
+:param&nbsp;theta_i:&nbsp;Initial&nbsp;displacement.<br>
+:param&nbsp;omega_i:&nbsp;Initial&nbsp;angular&nbsp;velocity.<br>
+:param&nbsp;b:&nbsp;Damping&nbsp;coefficient.<br>
+:param&nbsp;k:&nbsp;Elastic&nbsp;coefficient.<br>
+:param&nbsp;i:&nbsp;Moment&nbsp;of&nbsp;inertia.<br>
+:param&nbsp;baked_torque:&nbsp;The&nbsp;forcing&nbsp;torque&nbsp;with&nbsp;the&nbsp;relevant&nbsp;parameters&nbsp;<br>
+baked&nbsp;in,&nbsp;such&nbsp;as&nbsp;amplitudes,&nbsp;period,&nbsp;phases.<br>
+:return:&nbsp;The&nbsp;values&nbsp;of&nbsp;the&nbsp;coefficients&nbsp;A&nbsp;and&nbsp;B&nbsp;for&nbsp;the&nbsp;complementary&nbsp;<br>
+function.</tt></dd></dl>
+ <dl><dt><a name="-theory_response"><strong>theory_response</strong></a>(b, k, i, b_prime, k_prime, w_d)</dt><dd><tt>Gets&nbsp;the&nbsp;transfer&nbsp;function&nbsp;for&nbsp;a&nbsp;sinusoidal&nbsp;input&nbsp;torque.&nbsp;Note&nbsp;that&nbsp;<br>
+w_d&nbsp;must&nbsp;be&nbsp;the&nbsp;only&nbsp;array.&nbsp;Note:&nbsp;this&nbsp;is&nbsp;NOT&nbsp;the&nbsp;amplitude,&nbsp;rather&nbsp;it&nbsp;is&nbsp;<br>
+normalised&nbsp;by&nbsp;the&nbsp;torque&nbsp;amplitude.</tt></dd></dl>
+ <dl><dt><a name="-w_damped_gamma"><strong>w_damped_gamma</strong></a>(b, k, i)</dt><dd><tt>Damped&nbsp;frequency&nbsp;and&nbsp;damping.</tt></dd></dl>
+ <dl><dt><a name="-w_res_gamma"><strong>w_res_gamma</strong></a>(b, k, i)</dt><dd><tt>Amplitude&nbsp;resonant&nbsp;frequency.</tt></dd></dl>
+</td></tr></table>
+</body></html>

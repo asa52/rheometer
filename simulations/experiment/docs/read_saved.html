@@ -1,0 +1,71 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module read_saved</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>read_saved</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:c%3A%5Cusers%5Cabhishek%5Conedrive%20-%20university%20of%20cambridge%5Cproject%5Ccode%5Csimulations%5Cexperiment%5Cread_saved.py">c:\users\abhishek\onedrive - university of cambridge\project\code\simulations\experiment\read_saved.py</a></font></td></tr></table>
+    <p><tt>Read&nbsp;data&nbsp;from&nbsp;each&nbsp;CSV&nbsp;file,&nbsp;find&nbsp;the&nbsp;appropriate&nbsp;log&nbsp;file,&nbsp;and&nbsp;group&nbsp;data&nbsp;<br>
+into&nbsp;sets&nbsp;of&nbsp;the&nbsp;same&nbsp;parameters&nbsp;but&nbsp;varying&nbsp;driving&nbsp;frequency.&nbsp;Once&nbsp;this&nbsp;is&nbsp;<br>
+done,&nbsp;calculate&nbsp;the&nbsp;response&nbsp;curve&nbsp;for&nbsp;each&nbsp;set.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="helpers.html">helpers</a><br>
+<a href="measurement.html">measurement</a><br>
+</td><td width="25%" valign=top><a href="numpy.html">numpy</a><br>
+<a href="plotter.html">plotter</a><br>
+</td><td width="25%" valign=top><a href="pandas.html">pandas</a><br>
+<a href="re.html">re</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-check_matches"><strong>check_matches</strong></a>(files_list, num_one='displacements', num_two='measured-vals.csv')</dt><dd><tt>Given&nbsp;a&nbsp;list&nbsp;of&nbsp;file&nbsp;names&nbsp;as&nbsp;strings,&nbsp;finds&nbsp;the&nbsp;file&nbsp;names&nbsp;containing&nbsp;<br>
+the&nbsp;string&nbsp;num_one&nbsp;at&nbsp;the&nbsp;end,&nbsp;and&nbsp;checks&nbsp;that&nbsp;equivalent&nbsp;files&nbsp;containing&nbsp;<br>
+num_two&nbsp;exist&nbsp;in&nbsp;the&nbsp;list.&nbsp;Returns&nbsp;the&nbsp;list&nbsp;of&nbsp;the&nbsp;filename&nbsp;roots&nbsp;(the&nbsp;<br>
+start&nbsp;of&nbsp;the&nbsp;file&nbsp;name)&nbsp;where&nbsp;this&nbsp;condition&nbsp;is&nbsp;met.</tt></dd></dl>
+ <dl><dt><a name="-match_torques"><strong>match_torques</strong></a>(grouped_sets, plot_real=False, savepath=None)</dt><dd><tt>Match&nbsp;the&nbsp;times&nbsp;to&nbsp;the&nbsp;torques&nbsp;and&nbsp;displacements&nbsp;and&nbsp;return&nbsp;an&nbsp;array&nbsp;<br>
+of&nbsp;those&nbsp;values&nbsp;for&nbsp;each&nbsp;of&nbsp;the&nbsp;parameter&nbsp;combinations.<br>
+:param&nbsp;grouped_sets:&nbsp;All&nbsp;grouped&nbsp;data.<br>
+:param&nbsp;plot_real:&nbsp;Plot&nbsp;the&nbsp;real&nbsp;space&nbsp;data&nbsp;and&nbsp;save&nbsp;with&nbsp;logs.<br>
+:param&nbsp;savepath:&nbsp;Save&nbsp;path&nbsp;to&nbsp;send&nbsp;to&nbsp;the&nbsp;n_plotter&nbsp;function.</tt></dd></dl>
+ <dl><dt><a name="-prepare_to_plot"><strong>prepare_to_plot</strong></a>(grouped_mmts, theory_resp, savepath=None, show=True)</dt><dd><tt>For&nbsp;this&nbsp;particular&nbsp;arrangement&nbsp;of&nbsp;measurements,&nbsp;reformat&nbsp;the&nbsp;grouped&nbsp;<br>
+data&nbsp;to&nbsp;be&nbsp;plotted.<br>
+:param&nbsp;grouped_mmts:&nbsp;The&nbsp;measurements&nbsp;of&nbsp;frequency,&nbsp;amplitude&nbsp;and&nbsp;phase&nbsp;<br>
+returned&nbsp;by&nbsp;measure_all_groups.<br>
+:param&nbsp;theory_resp:&nbsp;Theory's&nbsp;response&nbsp;function&nbsp;baked&nbsp;to&nbsp;require&nbsp;just&nbsp;the&nbsp;<br>
+driving&nbsp;angular&nbsp;frequency.<br>
+:param&nbsp;savepath:&nbsp;The&nbsp;path&nbsp;to&nbsp;save&nbsp;the&nbsp;graphs&nbsp;to.<br>
+:param&nbsp;show:&nbsp;Whether&nbsp;to&nbsp;show&nbsp;each&nbsp;graph&nbsp;or&nbsp;not.</tt></dd></dl>
+ <dl><dt><a name="-read_all_data"><strong>read_all_data</strong></a>(path, fname_roots, disps_ext='displacements', torque_ext='measured-vals')</dt><dd><tt>Read&nbsp;all&nbsp;data&nbsp;for&nbsp;a&nbsp;list&nbsp;of&nbsp;filename&nbsp;roots,&nbsp;as&nbsp;well&nbsp;as&nbsp;the&nbsp;parameters&nbsp;<br>
+used&nbsp;for&nbsp;them.&nbsp;Return&nbsp;a&nbsp;list&nbsp;of&nbsp;dictionaries&nbsp;containing&nbsp;the&nbsp;parameters,&nbsp;<br>
+as&nbsp;well&nbsp;as&nbsp;the&nbsp;time-theta&nbsp;data&nbsp;under&nbsp;the&nbsp;'disps'&nbsp;key,&nbsp;and&nbsp;the&nbsp;torque&nbsp;data&nbsp;<br>
+in&nbsp;the&nbsp;'torques'&nbsp;key.<br>
+:param&nbsp;path:&nbsp;String&nbsp;for&nbsp;the&nbsp;directory&nbsp;to&nbsp;look&nbsp;in.<br>
+:param&nbsp;fname_roots:&nbsp;A&nbsp;list&nbsp;of&nbsp;filename&nbsp;roots.<br>
+:param&nbsp;disps_ext:&nbsp;Displacements&nbsp;file&nbsp;extension.<br>
+:param&nbsp;torque_ext:&nbsp;Torques&nbsp;file&nbsp;extension.&nbsp;Set&nbsp;to&nbsp;same&nbsp;as&nbsp;above&nbsp;if&nbsp;<br>
+reading&nbsp;from&nbsp;the&nbsp;same&nbsp;file.</tt></dd></dl>
+ <dl><dt><a name="-read_plot"><strong>read_plot</strong></a>(filepaths, savepath=None, show=True)</dt><dd><tt>Read&nbsp;a&nbsp;CSV&nbsp;file's&nbsp;columns&nbsp;and&nbsp;immediately&nbsp;plot&nbsp;its&nbsp;displacement&nbsp;as&nbsp;a&nbsp;<br>
+function&nbsp;of&nbsp;time.&nbsp;Point&nbsp;to&nbsp;multiple&nbsp;files&nbsp;to&nbsp;plot&nbsp;them&nbsp;on&nbsp;a&nbsp;single&nbsp;plot.</tt></dd></dl>
+ <dl><dt><a name="-sort_data"><strong>sort_data</strong></a>(all_datasets, all_same=False, sort_by=('b', 'phi', "b'", 't0', 'k', 'omega_0', 'tfin', 'i', "k'", 'g_0_mag', 'theta_0', 'delay'))</dt><dd><tt>Sort&nbsp;all&nbsp;data&nbsp;by&nbsp;grouping&nbsp;according&nbsp;to&nbsp;parameter&nbsp;values.&nbsp;Return&nbsp;a&nbsp;list&nbsp;of&nbsp;<br>
+lists&nbsp;of&nbsp;dictionaries.&nbsp;If&nbsp;all_same&nbsp;is&nbsp;True,&nbsp;just&nbsp;returns&nbsp;the&nbsp;entire&nbsp;<br>
+thing&nbsp;as&nbsp;if&nbsp;all&nbsp;parameters&nbsp;belong&nbsp;to&nbsp;one&nbsp;set.</tt></dd></dl>
+ <dl><dt><a name="-time"><strong>time</strong></a>(...)</dt><dd><tt><a href="#-time">time</a>()&nbsp;-&gt;&nbsp;floating&nbsp;point&nbsp;number<br>
+&nbsp;<br>
+Return&nbsp;the&nbsp;current&nbsp;time&nbsp;in&nbsp;seconds&nbsp;since&nbsp;the&nbsp;Epoch.<br>
+Fractions&nbsp;of&nbsp;a&nbsp;second&nbsp;may&nbsp;be&nbsp;present&nbsp;if&nbsp;the&nbsp;system&nbsp;clock&nbsp;provides&nbsp;them.</tt></dd></dl>
+</td></tr></table>
+</body></html>

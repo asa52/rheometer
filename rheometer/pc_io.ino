@@ -122,7 +122,6 @@ void send_3_byte_value(int value, byte third_byte) {
     b[0] = value;
 
     for (int i = 8; i <= 14; i++) { 
-    	//TODO had problems with 14th bit being set for no reason
         bitWrite(b[1], i - 8, bitRead(value, i));
     }
 
